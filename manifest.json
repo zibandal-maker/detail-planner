@@ -1,7 +1,7 @@
 {
-  "name": "Detailing Log — 디테일링 세차 플래너",
-  "short_name": "DetailLog",
-  "description": "세차 디테일링 세션 계획·실행·복기 + 케미컬/장비 인벤토리 관리",
+  "name": "세차 플래너",
+  "short_name": "세차 플래너",
+  "description": "세차 세션 계획·실행·복기 + 케미컬/장비 인벤토리 관리",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,7 +9,11 @@
   "background_color": "#070a12",
   "theme_color": "#070a12",
   "lang": "ko",
-  "categories": ["lifestyle", "utilities", "productivity"],
+  "categories": [
+    "lifestyle",
+    "utilities",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icon.svg",

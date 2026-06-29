@@ -4,14 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#070a12">
-<title>Detailing Log</title>
+<title>세차 플래너</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="DetailLog">
-<meta name="description" content="세차 디테일링 세션 계획·실행·복기 + 케미컬/장비 인벤토리 관리">
+<meta name="apple-mobile-web-app-title" content="세차 플래너">
+<meta name="description" content="세차 세션 계획·실행·복기 + 케미컬/장비 인벤토리 관리">
 <script>window.DEMO_MODE = false;</script>
 <style>
 :root{
@@ -239,6 +240,7 @@ textarea.inp{resize:vertical;min-height:64px}
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
 var h = React.createElement;
@@ -385,7 +387,7 @@ function seedDemo(){
     var sessions=[
       {id:"s_done1",created:now-86400000*7,title:"7월 풀 디테일링",date:dateOffset(7),vehicleId:"v_modelx",
         status:"done",runningStepId:null,cost:0,location:"자택 차고",geo:{lat:37.2636,lng:127.0286},
-        beforePhotos:[],resultPhotos:[],review:{good:"클레이 후 면이 확실히 매끈해짐. 컴파운드 1스텝으로 스월 대부분 제거.",improve:"철분 제거 시간을 더 길게. 댐웰 부족했음."},
+        beforePhotos:[""],resultPhotos:[""],review:{good:"클레이 후 면이 확실히 매끈해짐. 컴파운드 1스텝으로 스월 대부분 제거.",improve:"철분 제거 시간을 더 길게. 댐웰 부족했음."},
         steps:[
           {id:uid(),name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:1020,_startedAt:null,photos:[]},
           {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80,done:true,actualSec:540,_startedAt:null,photos:[]},
@@ -407,9 +409,9 @@ function seedDemo(){
         ]},
       {id:"s_active",created:now,title:"오늘 외부 디테일링",date:dateOffset(0),vehicleId:"v_modelx",
         status:"running",runningStepId:"st_active2",cost:0,location:"자택 차고",geo:{lat:37.2636,lng:127.0286},
-        beforePhotos:[],resultPhotos:[],review:{good:"",improve:""},
+        beforePhotos:[""],resultPhotos:[],review:{good:"",improve:""},
         steps:[
-          {id:"st_active1",name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:840,_startedAt:null,photos:[]},
+          {id:"st_active1",name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:840,_startedAt:null,photos:[""]},
           {id:"st_active2",name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80,done:false,actualSec:180,_startedAt:now-120000,photos:[]},
           {id:"st_active3",name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30,done:false,actualSec:0,_startedAt:null,photos:[]},
           {id:"st_active4",name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:40,done:false,actualSec:0,_startedAt:null,photos:[]},
@@ -621,7 +623,7 @@ function App(){
 function Header(props){
   var t={sessions:"세차 기록",garage:"내 차고",chem:"케미컬",gear:"장비",stats:"통계"};
   return h("header",null,
-    h("h1",null,t[props.T]||"Detailing Log"," ",h("span",{className:"dot"},"·")),
+    h("h1",null,t[props.T]||"세차 플래너"," ",h("span",{className:"dot"},"·")),
     h("button",{className:"hbtn",onClick:props.onSettings,title:"설정·백업"},"⚙"));
 }
 function BottomNav(props){
@@ -1105,7 +1107,9 @@ function SessionMeta(props){
         navigator.geolocation.getCurrentPosition(function(p){patch({geo:{lat:p.coords.latitude,lng:p.coords.longitude}});alert("좌표 저장됨");},
           function(){alert("위치 권한이 필요해요");});
       }},"📍")),
-    s.geo&&h("div",{className:"tiny",style:{marginTop:6}},"좌표: "+s.geo.lat.toFixed(5)+", "+s.geo.lng.toFixed(5)));
+    s.geo&&h("div",{style:{marginTop:8}},
+      h(LeafletMap,{lat:s.geo.lat,lng:s.geo.lng,height:170,interactive:true}),
+      h("div",{className:"tiny",style:{marginTop:5}},"📍 "+s.geo.lat.toFixed(5)+", "+s.geo.lng.toFixed(5))));
 }
 
 function ReviewBlock(props){
@@ -1524,7 +1528,6 @@ function Report(props){
   s.steps.forEach(function(st){(st.chemIds||[]).forEach(function(cid){
     if(st.usedMl>0){var c=ctx.chem.find(function(x){return x.id===cid;});if(c)chemUsed.push({name:c.name,ml:Math.round(st.usedMl/((st.chemIds||[]).length||1))});}
   });});
-  var mapUrl=s.geo?("https://staticmap.openstreetmap.de/staticmap.php?center="+s.geo.lat+","+s.geo.lng+"&zoom=15&size=600x240&markers="+s.geo.lat+","+s.geo.lng+",red-pushpin"):null;
 
   function savePng(){
     if(typeof html2canvas==="undefined"){alert("이미지 변환 모듈을 불러오지 못했어요(오프라인?). 인쇄 저장을 이용하세요.");return;}
@@ -1589,9 +1592,9 @@ function Report(props){
             h("table",null,h("tbody",null,chemUsed.map(function(c,i){
               return h("tr",{key:i},h("td",null,c.name),h("td",{style:{textAlign:"right"}},c.ml+"ml"));})))),
 
-          mapUrl&&h("div",{className:"rsec"},h("h4",null,"위치"),
-            h("img",{src:mapUrl,style:{width:"100%",borderRadius:8},onError:function(e){e.target.style.display="none";}}),
-            h("div",{style:{fontSize:11,color:"#888",marginTop:4}},s.geo.lat.toFixed(5)+", "+s.geo.lng.toFixed(5))),
+          s.geo&&h("div",{className:"rsec"},h("h4",null,"위치"),
+            h(LeafletMap,{lat:s.geo.lat,lng:s.geo.lng,height:200,interactive:false}),
+            h("div",{style:{fontSize:11,color:"#888",marginTop:4}},(s.location?s.location+" · ":"")+s.geo.lat.toFixed(5)+", "+s.geo.lng.toFixed(5))),
 
           (s.review.good||s.review.improve)&&h("div",{className:"rsec"},h("h4",null,"복기"),
             s.review.good&&h("div",{style:{fontSize:13,marginBottom:6}},h("b",null,"잘된 점 · "),s.review.good),
@@ -1717,6 +1720,32 @@ function SettingsSheet(props){
 }
 
 /* ---------------- sheet ---------------- */
+/* ---------------- LEAFLET MAP ---------------- */
+function LeafletMap(props){ // props: lat, lng, height, interactive
+  var ref=useRef(null), mapRef=useRef(null), failed=useState(false);
+  useEffect(function(){
+    if(typeof L==="undefined"){ failed[1](true); return; }
+    if(!ref.current||mapRef.current) return;
+    try{
+      var map=L.map(ref.current,{
+        zoomControl:!!props.interactive, dragging:!!props.interactive,
+        scrollWheelZoom:false, doubleClickZoom:!!props.interactive,
+        attributionControl:false
+      }).setView([props.lat,props.lng],15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
+      L.circleMarker([props.lat,props.lng],{radius:9,color:"#22d3ee",weight:3,fillColor:"#5b8cff",fillOpacity:.9}).addTo(map);
+      mapRef.current=map;
+      // ensure correct sizing after layout
+      setTimeout(function(){ try{map.invalidateSize();}catch(e){} },200);
+    }catch(e){ failed[1](true); }
+    return function(){ if(mapRef.current){ try{mapRef.current.remove();}catch(e){} mapRef.current=null; } };
+  },[props.lat,props.lng]);
+
+  if(failed[0]) return h("div",{className:"tiny",style:{padding:"8px 0"}},"지도를 불러올 수 없어요 · 좌표 "+props.lat.toFixed(5)+", "+props.lng.toFixed(5));
+  return h("div",{ref:ref,style:{width:"100%",height:(props.height||180)+"px",borderRadius:12,overflow:"hidden",border:"1px solid var(--line)"}});
+}
+
+/* ---------------- sheet ---------------- */
 function Sheet(props){
   function bg(e){if(e.target===e.currentTarget)props.close();}
   return h("div",{className:"scrim",onClick:bg},
@@ -1726,6 +1755,10 @@ function Sheet(props){
 
 ReactDOM.createRoot(document.getElementById("root")).render(h(App));
 </script>
+<script>
+window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
