@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#070a12">
+<meta name="theme-color" content="#121829">
 <title>세차 플래너</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="manifest" href="/manifest.json">
@@ -16,10 +16,10 @@
 <script>window.DEMO_MODE = true;</script>
 <style>
 :root{
-  --bg:#070a12; --bg2:#0b1020;
-  --surface:rgba(22,28,46,.66); --surface-solid:#161c2e;
-  --surface2:rgba(31,40,64,.55); --surface2-solid:#1f2840;
-  --line:rgba(120,140,190,.16); --line2:rgba(120,140,190,.28);
+  --bg:#121829; --bg2:#1a2236;
+  --surface:rgba(36,46,72,.72); --surface-solid:#222c44;
+  --surface2:rgba(46,58,88,.62); --surface2-solid:#2b3754;
+  --line:rgba(130,150,200,.20); --line2:rgba(130,150,200,.34);
   --txt:#eef2fb; --txt2:#9fabc7; --txt3:#6b7798;
   --c1:#22d3ee; --c2:#7c5cff; --c3:#b14dff;
   --accent:#3fd7e6; --accent-ink:#03171c;
@@ -35,8 +35,8 @@ html,body{margin:0;padding:0;color:var(--txt);
   font-size:16px;line-height:1.45;overscroll-behavior-y:none}
 body{padding-bottom:80px;background:var(--bg);
   background-image:
-    radial-gradient(900px 500px at 8% -8%,rgba(34,211,238,.16),transparent 60%),
-    radial-gradient(900px 600px at 108% 4%,rgba(177,77,255,.16),transparent 60%),
+    radial-gradient(900px 500px at 8% -8%,rgba(34,211,238,.20),transparent 60%),
+    radial-gradient(900px 600px at 108% 4%,rgba(177,77,255,.20),transparent 60%),
     radial-gradient(700px 500px at 50% 108%,rgba(91,140,255,.10),transparent 60%);
   background-attachment:fixed}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
@@ -45,7 +45,7 @@ input,select,textarea{font-family:inherit;font-size:16px}
 ::selection{background:rgba(124,92,255,.4)}
 
 header{position:sticky;top:0;z-index:30;
-  background:linear-gradient(180deg,rgba(7,10,18,.92),rgba(7,10,18,.62));
+  background:linear-gradient(180deg,rgba(18,24,41,.92),rgba(18,24,41,.6));
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   border-bottom:1px solid var(--line);
   padding:15px 16px 13px;display:flex;align-items:center;gap:10px}
@@ -62,7 +62,7 @@ header h1 .dot{
 main{padding:18px 16px;max-width:680px;margin:0 auto}
 
 nav{position:fixed;bottom:0;left:0;right:0;z-index:30;
-  background:linear-gradient(0deg,rgba(7,10,18,.96),rgba(7,10,18,.7));
+  background:linear-gradient(0deg,rgba(18,24,41,.96),rgba(18,24,41,.68));
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   border-top:1px solid var(--line);
   display:flex;padding:8px 2px calc(8px + env(safe-area-inset-bottom))}
@@ -120,7 +120,7 @@ textarea.inp{resize:vertical;min-height:64px}
 .chip.tag{background:rgba(224,179,82,.12);border-color:rgba(224,179,82,.32);color:var(--gold)}
 .chip.sm{padding:4px 10px;font-size:12px}
 
-.scrim{position:fixed;inset:0;z-index:40;background:rgba(3,6,14,.66);
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(8,12,22,.62);
   backdrop-filter:blur(4px);display:flex;align-items:flex-end;animation:fade .2s}
 @keyframes fade{from{opacity:0}}
 .sheet{background:linear-gradient(180deg,var(--surface-solid),#0c1120);
