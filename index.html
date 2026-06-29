@@ -264,6 +264,27 @@ var CATS = [
 function catName(k){ var c=CATS.find(function(x){return x.k===k;}); return c?c.n:"기타"; }
 function catSubs(k){ var c=CATS.find(function(x){return x.k===k;}); return c?c.sub:[]; }
 
+/* 장비 대분류 (디테일링 쇼핑몰 공통 분류 기반). sub는 향후 세부타입 확장용 — 현재 UI 미사용 */
+var EQUIP_CATS=[
+  {k:"polisher", n:"폴리셔/광택기", sub:["로터리","듀얼액션(DA)","미니/나노","백업패드"]},
+  {k:"pad",      n:"패드",         sub:["컴파운드(초벌)","폴리싱(중벌)","피니싱(마무리)","울패드","쿠션패드"]},
+  {k:"towel",    n:"타월&워시미트", sub:["드라잉타월","버핑타월","다목적타월","유리타월","워시미트"]},
+  {k:"applibrush",n:"어플&브러쉬",  sub:["어플리케이터","디테일브러시","휠브러시","레더브러시"]},
+  {k:"tool",     n:"디테일링툴",    sub:["폼랜서/폼건","압축분무기","고압세척기","송풍기","스팀기"]},
+  {k:"etc",      n:"기타",         sub:["버킷/그릿가드","조명","마스킹","보호장구","기타"]}
+];
+function equipCatName(k){var c=EQUIP_CATS.find(function(x){return x.k===k;});return c?c.n:"기타";}
+// 레거시 평면 type → 새 대분류 키 매핑 (구버전 데이터 호환)
+var EQUIP_LEGACY_MAP={
+  "폴리셔/DA":"polisher","폼랜서/폼건":"tool","압축분무기":"tool","고압세척기":"tool",
+  "워시미트/장갑":"towel","버킷":"etc","건조타올":"towel","어플리케이터":"applibrush",
+  "브러시":"applibrush","송풍기":"tool","기타":"etc"
+};
+function equipCatOf(eq){
+  if(!eq) return "etc";
+  if(eq.cat) return eq.cat; // 신규 데이터
+  return EQUIP_LEGACY_MAP[eq.type]||"etc"; // 레거시 type 폴백
+}
 var EQUIP_TYPES=["폴리셔/DA","폼랜서/폼건","압축분무기","고압세척기","워시미트/장갑","버킷","건조타올","어플리케이터","브러시","송풍기","기타"];
 
 /* preset step library — standard detailing order (wheels→prewash→wash→decon→correct→protect→glass→interior→finish) */
@@ -356,14 +377,17 @@ function seedDemo(){
       {id:"ch_tire",name:"타이어 드레싱",brand:"가야바",cat:"wheel",subtype:"타이어 드레싱",notes:"어플리케이터",photo:"",volMl:500,remainMl:350,defaultMl:25}
     ];
     var equipment=[
-      {id:"eq_da",name:"루펠 LHR15 마크3",type:"폴리셔/DA",brand:"Rupes",notes:"5인치 백킹플레이트",photo:"",uses:12,lifeLimit:0},
-      {id:"eq_foam",name:"폼랜서 V2",type:"폼랜서/폼건",brand:"MJJC",notes:"",photo:"",uses:24,lifeLimit:0},
-      {id:"eq_press",name:"K5 고압세척기",type:"고압세척기",brand:"Karcher",notes:"",photo:"",uses:24,lifeLimit:0},
-      {id:"eq_spray",name:"압축 분무기 1.5L",type:"압축분무기",brand:"이케아",notes:"프리워시용",photo:"",uses:18,lifeLimit:0},
-      {id:"eq_mitt",name:"양모 워시미트",type:"워시미트/장갑",brand:"람스울",notes:"투버킷 전용",photo:"",uses:26,lifeLimit:30},
-      {id:"eq_towel",name:"드라잉 타올 1200gsm",type:"건조타올",brand:"오토피네사",notes:"세탁 후 재사용",photo:"",uses:31,lifeLimit:30},
-      {id:"eq_brush",name:"휠 브러시 세트",type:"브러시",brand:"몬테카를로",notes:"배럴+페이스",photo:"",uses:20,lifeLimit:0},
-      {id:"eq_blow",name:"송풍기",type:"송풍기",brand:"메탈배큠",notes:"틈새 물기 제거",photo:"",uses:10,lifeLimit:0}
+      {id:"eq_da",name:"루펠 LHR15 마크3",cat:"polisher",type:"폴리셔/DA",brand:"Rupes",notes:"5인치 백킹플레이트",photo:"",uses:12,lifeLimit:0},
+      {id:"eq_pad_c",name:"컴파운드 폼패드 5인치",cat:"pad",type:"",brand:"멘제르나",notes:"초벌용 오렌지",photo:"",uses:14,lifeLimit:20},
+      {id:"eq_pad_f",name:"피니싱 폼패드 5인치",cat:"pad",type:"",brand:"멘제르나",notes:"마무리용 블랙",photo:"",uses:9,lifeLimit:20},
+      {id:"eq_foam",name:"폼랜서 V2",cat:"tool",type:"폼랜서/폼건",brand:"MJJC",notes:"",photo:"",uses:24,lifeLimit:0},
+      {id:"eq_press",name:"K5 고압세척기",cat:"tool",type:"고압세척기",brand:"Karcher",notes:"",photo:"",uses:24,lifeLimit:0},
+      {id:"eq_spray",name:"압축 분무기 1.5L",cat:"tool",type:"압축분무기",brand:"이케아",notes:"프리워시용",photo:"",uses:18,lifeLimit:0},
+      {id:"eq_blow",name:"송풍기",cat:"tool",type:"송풍기",brand:"메탈배큠",notes:"틈새 물기 제거",photo:"",uses:10,lifeLimit:0},
+      {id:"eq_mitt",name:"양모 워시미트",cat:"towel",type:"워시미트/장갑",brand:"람스울",notes:"투버킷 전용",photo:"",uses:26,lifeLimit:30},
+      {id:"eq_towel",name:"드라잉 타올 1200gsm",cat:"towel",type:"건조타올",brand:"오토피네사",notes:"세탁 후 재사용",photo:"",uses:31,lifeLimit:30},
+      {id:"eq_brush",name:"휠 브러시 세트",cat:"applibrush",type:"브러시",brand:"몬테카를로",notes:"배럴+페이스",photo:"",uses:20,lifeLimit:0},
+      {id:"eq_bucket",name:"디테일 버킷 20L",cat:"etc",type:"버킷",brand:"그릿가드",notes:"그릿가드 포함",photo:"",uses:30,lifeLimit:0}
     ];
     var templates=[
       {id:"tpl_full",name:"풀 디테일링",steps:[
@@ -1492,37 +1516,49 @@ function ChemEditor(props){
 
 /* ---------------- EQUIPMENT ---------------- */
 function GearTab(props){
-  var ctx=props.ctx,edit=useState(null);
+  var ctx=props.ctx,edit=useState(null),filterCat=useState("");
+  function gearCard(eq){
+    var lim=eq.lifeLimit||0,u=eq.uses||0,pct=lim>0?Math.round(u/lim*100):0;
+    var warn=lim>0&&u>=lim, near=lim>0&&!warn&&u>=lim*0.8;
+    return h("div",{key:eq.id,className:"card tap",onClick:function(){edit[1](eq);}},
+      h("div",{className:"row"},
+        eq.photo?h("img",{className:"thumb",src:eq.photo}):h("div",{className:"thumb"},"🛠"),
+        h("div",{className:"grow"},h("div",{style:{fontWeight:700,fontSize:16}},eq.name,
+          warn&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(255,93,108,.15)",borderColor:"rgba(255,93,108,.4)",color:"var(--bad)"}},"교체 권장"),
+          near&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(245,185,69,.13)",borderColor:"rgba(245,185,69,.35)",color:"var(--warn)"}},"교체 임박")),
+          h("div",{className:"muted"},[eq.brand].filter(Boolean).join(" · ")||"—"),
+          lim>0&&h("div",null,
+            h("div",{className:"row between",style:{marginTop:5}},
+              h("span",{className:"tiny"},"사용 "+u+" / "+lim+"회"),
+              h("span",{className:"tiny",style:{color:warn?"var(--bad)":near?"var(--warn)":"var(--txt3)"}},pct+"%")),
+            h("div",{className:"gauge "+(warn?"crit":near?"low":"")},h("div",{style:{width:Math.min(100,pct)+"%"}}))),
+          (lim===0&&u>0)&&h("div",{className:"tiny",style:{marginTop:3}},"사용 "+u+"회"),
+          eq.notes&&h("div",{className:"tiny ellip",style:{marginTop:2}},eq.notes))));
+  }
+  var list=ctx.equip.filter(function(e){return !filterCat[0]||equipCatOf(e)===filterCat[0];});
+  var byCat={};
+  list.forEach(function(e){var k=equipCatOf(e);if(!byCat[k])byCat[k]=[];byCat[k].push(e);});
   return h("div",null,
     ctx.equip.length===0&&h("div",{className:"empty"},h("div",{className:"e"},"🛠"),
       h("div",null,"등록된 장비가 없어요"),h("div",{className:"tiny",style:{marginTop:6}},"폴리셔, 폼랜서, 분무기… 내 컬렉션을 모아보세요")),
-    ctx.equip.map(function(eq){
-      var lim=eq.lifeLimit||0,u=eq.uses||0,pct=lim>0?Math.round(u/lim*100):0;
-      var warn=lim>0&&u>=lim, near=lim>0&&!warn&&u>=lim*0.8;
-      return h("div",{key:eq.id,className:"card tap",onClick:function(){edit[1](eq);}},
-        h("div",{className:"row"},
-          eq.photo?h("img",{className:"thumb",src:eq.photo}):h("div",{className:"thumb"},"🛠"),
-          h("div",{className:"grow"},h("div",{style:{fontWeight:700,fontSize:16}},eq.name,
-            warn&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(255,93,108,.15)",borderColor:"rgba(255,93,108,.4)",color:"var(--bad)"}},"교체 권장"),
-            near&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(245,185,69,.13)",borderColor:"rgba(245,185,69,.35)",color:"var(--warn)"}},"교체 임박")),
-            h("div",{className:"muted"},[eq.type,eq.brand].filter(Boolean).join(" · ")||"—"),
-            lim>0&&h("div",null,
-              h("div",{className:"row between",style:{marginTop:5}},
-                h("span",{className:"tiny"},"사용 "+u+" / "+lim+"회"),
-                h("span",{className:"tiny",style:{color:warn?"var(--bad)":near?"var(--warn)":"var(--txt3)"}},pct+"%")),
-              h("div",{className:"gauge "+(warn?"crit":near?"low":"")},h("div",{style:{width:Math.min(100,pct)+"%"}}))),
-            (lim===0&&u>0)&&h("div",{className:"tiny",style:{marginTop:3}},"사용 "+u+"회"),
-            eq.notes&&h("div",{className:"tiny ellip",style:{marginTop:2}},eq.notes))));
+    ctx.equip.length>0&&h("div",{className:"chips",style:{marginBottom:14}},
+      h("span",{className:"chip"+(filterCat[0]===""?" on":""),onClick:function(){filterCat[1]("");}},"전체"),
+      EQUIP_CATS.filter(function(c){return ctx.equip.some(function(x){return equipCatOf(x)===c.k;});}).map(function(c){
+        return h("span",{key:c.k,className:"chip"+(filterCat[0]===c.k?" on":""),onClick:function(){filterCat[1](c.k);}},c.n);})),
+    EQUIP_CATS.filter(function(c){return byCat[c.k]&&byCat[c.k].length;}).map(function(cat){
+      return h("div",{key:cat.k},
+        h("div",{className:"sectit"},cat.n),
+        byCat[cat.k].map(gearCard));
     }),
-    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",type:"",brand:"",notes:"",photo:"",uses:0,lifeLimit:0});}},"+"),
+    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",cat:"",type:"",brand:"",notes:"",photo:"",uses:0,lifeLimit:0});}},"+"),
     edit[0]&&h(GearEditor,{eq:edit[0],ctx:ctx,close:function(){edit[1](null);}}));
 }
 function GearEditor(props){
   var e0=props.eq,ctx=props.ctx;
-  var name=useState(e0.name),type=useState(e0.type||""),brand=useState(e0.brand||""),notes=useState(e0.notes||""),photo=useState(e0.photo);
+  var name=useState(e0.name),cat=useState(e0.cat||equipCatOf(e0)||""),brand=useState(e0.brand||""),notes=useState(e0.notes||""),photo=useState(e0.photo);
   var uses=useState(e0.uses||0),lifeLimit=useState(e0.lifeLimit||0);
   function save(){if(!name[0].trim()){alert("장비 이름을 입력하세요");return;}
-    dbPut("equipment",{id:e0.id,name:name[0].trim(),type:type[0],brand:brand[0],notes:notes[0],photo:photo[0],
+    dbPut("equipment",{id:e0.id,name:name[0].trim(),cat:cat[0],type:e0.type||"",brand:brand[0],notes:notes[0],photo:photo[0],
       uses:parseInt(uses[0])||0,lifeLimit:parseInt(lifeLimit[0])||0}).then(ctx.reload).then(props.close);}
   function imgSearch(){if(!name[0].trim()){alert("먼저 장비명을 입력하세요");return;}
     window.open("https://www.google.com/search?tbm=isch&q="+encodeURIComponent((brand[0]?brand[0]+" ":"")+name[0]),"_blank");}
@@ -1531,9 +1567,9 @@ function GearEditor(props){
     h(PhotoInput,{key:"pi",photo:photo[0],onChange:function(d){photo[1](d);}}),
     h("label",{className:"fl",key:1},"장비명"),
     h("input",{key:2,className:"inp",placeholder:"예: 루폴 폴리셔, 폼랜서",value:name[0],onChange:function(e){name[1](e.target.value);}}),
-    h("label",{className:"fl",key:3},"종류"),
-    h("div",{key:4,className:"chips"},EQUIP_TYPES.map(function(t){
-      return h("span",{key:t,className:"chip"+(type[0]===t?" on":""),onClick:function(){type[1](type[0]===t?"":t);}},t);})),
+    h("label",{className:"fl",key:3},"분류"),
+    h("div",{key:4,className:"chips"},EQUIP_CATS.map(function(c){
+      return h("span",{key:c.k,className:"chip"+(cat[0]===c.k?" on":""),onClick:function(){cat[1](cat[0]===c.k?"":c.k);}},c.n);})),
     h("label",{className:"fl",key:5},"브랜드"),
     h("input",{key:6,className:"inp",placeholder:"예: Rupes, MJJC",value:brand[0],onChange:function(e){brand[1](e.target.value);}}),
     h("div",{key:"lf",className:"row",style:{gap:8}},
