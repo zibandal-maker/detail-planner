@@ -1745,6 +1745,12 @@ function SettingsSheet(props){
     h("button",{key:"imp",className:"btn ghost",onClick:function(){fileRef.current.click();}},busy[0]?"복원 중…":"⤒ 백업 파일에서 복원"),
     h("input",{key:"f",ref:fileRef,type:"file",accept:"application/json,.json",className:"hidden",onChange:importData}),
 
+    h("div",{key:"fb",className:"sectit",style:{marginTop:18}},"피드백"),
+    h("div",{key:"fbh",className:"tiny",style:{marginBottom:10}},"버그·개선 아이디어·원하는 기능을 알려주세요. 익명으로 받아요."),
+    h("button",{key:"fbb",className:"btn ghost",onClick:function(){
+      window.open("https://docs.google.com/forms/d/e/1FAIpQLSfUf8TudjuwsZuwlrFiE-IcK_BUJNR8QsqJQKTIiV_SRC1e8w/viewform","_blank");
+    }},"💬 피드백 보내기"),
+
     h("div",{key:"dz",className:"sectit",style:{marginTop:22,color:"var(--bad)"}},"위험 구역"),
     h("button",{key:"rst",className:"btn ghost danger",onClick:resetAll},"전체 데이터 삭제"),
     h("div",{key:"sp",style:{height:8}})
