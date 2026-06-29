@@ -377,7 +377,7 @@ function seedDemo(){
       {id:"v_gv80",name:"화이트 제네시스",model:"Genesis GV80",plate:"경기 78나 9012",photo:"",
         coating:{type:"유리막 코팅",date:dateOffset(250),months:9}},
       {id:"v_bmw",name:"그레이 BMW",model:"BMW 520d",plate:"인천 34다 5678",photo:"",
-        coating:{type:"물왁스",date:dateOffset(40),months:1}},
+        coating:{type:"물왁스",date:dateOffset(40),months:1},careCycle:{wash:5,wax:14}},
       {id:"v_golf",name:"블루 골프",model:"VW Golf",plate:"경기 90라 1234",photo:"",
         coating:{type:"실란트",date:dateOffset(95),months:4}}
     ];
@@ -865,16 +865,114 @@ function BottomNav(props){
   }));
 }
 
+/* ---------------- RECIPE MANAGER (내 레시피 편집) ---------------- */
+function RecipeManager(props){
+  var ctx=props.ctx, edit=useState(null);
+  function newRecipe(){
+    edit[1]({_new:true,id:uid(),name:"",situation:"",steps:[]});
+  }
+  return h("div",null,
+    h(Sheet,{close:props.close,title:"내 레시피",children:[
+      h("div",{key:"h",className:"tiny",style:{marginBottom:12}},"나만의 세차 루틴을 만들고 편집하세요. 세차 시작 시 칩으로 불러올 수 있어요."),
+      ctx.tpl.length===0&&h("div",{key:"e",className:"empty",style:{padding:"24px 0"}},h("div",{className:"e"},"📋"),
+        h("div",null,"아직 레시피가 없어요"),
+        h("div",{className:"tiny",style:{marginTop:6}},"자주 하는 세차 순서를 루틴으로 만들어보세요")),
+      ctx.tpl.map(function(t){
+        var sit=recipeSituation(t.situation);
+        var totMin=t.steps.reduce(function(a,x){return a+(x.estMin||0);},0);
+        return h("div",{key:t.id,className:"card tap",onClick:function(){edit[1](t);}},
+          h("div",{className:"row between"},
+            h("div",{className:"grow"},
+              h("div",{style:{fontWeight:700,fontSize:16}},(sit?sit.icon+" ":"")+t.name),
+              h("div",{className:"tiny",style:{marginTop:3}},t.steps.length+"단계 · 약 "+totMin+"분"+(sit?" · "+sit.n:""))),
+            h("span",{className:"hbtn",style:{flex:"none"}},"✎")));
+      }),
+      h("button",{key:"add",className:"btn",style:{marginTop:8},onClick:newRecipe},"+ 새 레시피 만들기"),
+      h("div",{key:"sp",style:{height:10}})
+    ]}),
+    edit[0]&&h(RecipeEditor,{recipe:edit[0],ctx:ctx,close:function(){edit[1](null);}}));
+}
+
+function RecipeEditor(props){
+  var r0=props.recipe, ctx=props.ctx;
+  var name=useState(r0.name||""), sit=useState(r0.situation||""), steps=useState(r0.steps||[]);
+  var editStep=useState(null), pickPreset=useState(false);
+  function save(){
+    if(!name[0].trim()){alert("레시피 이름을 입력하세요");return;}
+    if(steps[0].length===0){alert("최소 1단계를 추가하세요");return;}
+    dbPut("templates",{id:r0.id,name:name[0].trim(),situation:sit[0],steps:steps[0]}).then(ctx.reload).then(props.close);
+  }
+  function del(){ if(confirm("이 레시피를 삭제할까요?")) dbDel("templates",r0.id).then(ctx.reload).then(props.close); }
+  function addStep(st){ steps[1](steps[0].concat([st])); }
+  function updStep(st){ steps[1](steps[0].map(function(x){return x.id===st.id?st:x;})); }
+  function delStep(id){ steps[1](steps[0].filter(function(x){return x.id!==id;})); }
+  function moveStep(i,dir){
+    var arr=steps[0].slice(), j=i+dir;
+    if(j<0||j>=arr.length) return;
+    var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp; steps[1](arr);
+  }
+  var totMin=steps[0].reduce(function(a,x){return a+(x.estMin||0);},0);
+  var stepListEl=steps[0].map(function(st,i){
+    var chemNames=(st.chemIds||[]).map(function(id){var c=ctx.chem.find(function(x){return x.id===id;});return c?c.name:null;}).filter(Boolean);
+    return h("div",{key:st.id,className:"card",style:{marginBottom:8,padding:"10px 12px"}},
+      h("div",{className:"row between"},
+        h("div",{className:"grow tap",onClick:function(){editStep[1](st);}},
+          h("div",{style:{fontWeight:700}},(i+1)+". "+st.name,st.cat&&h("span",{className:"chip sm",style:{marginLeft:6}},catName(st.cat))),
+          h("div",{className:"tiny",style:{marginTop:2}},
+            (st.dilution?st.dilution+" · ":"")+(st.estMin?st.estMin+"분":"")+(chemNames.length?" · "+chemNames.join(", "):""))),
+        h("div",{style:{display:"flex",gap:4,flex:"none",alignItems:"center"}},
+          h("button",{className:"chip sm",onClick:function(){moveStep(i,-1);},disabled:i===0,style:{opacity:i===0?.3:1}},"▲"),
+          h("button",{className:"chip sm",onClick:function(){moveStep(i,1);},disabled:i===steps[0].length-1,style:{opacity:i===steps[0].length-1?.3:1}},"▼"))));
+  });
+  var bodyEl=h(Sheet,{close:props.close,title:r0._new?"레시피 만들기":"레시피 편집",children:[
+    h("label",{className:"fl",key:1},"레시피 이름"),
+    h("input",{key:2,className:"inp",placeholder:"예: 장마철 빠른 세차",value:name[0],onChange:function(e){name[1](e.target.value);}}),
+    h("label",{className:"fl",key:3},"상황 (선택)"),
+    h("div",{key:4,className:"chips"},RECIPE_SITUATIONS.map(function(rs){
+      return h("span",{key:rs.k,className:"chip"+(sit[0]===rs.k?" on":""),onClick:function(){sit[1](sit[0]===rs.k?"":rs.k);}},rs.icon+" "+rs.n);})),
+    h("div",{key:"sd",className:"divider"}),
+    h("div",{key:"st",className:"row between"},
+      h("div",{className:"sectit",style:{margin:0}},"세차 단계 · "+steps[0].length+"개"),
+      h("span",{className:"tiny"},"약 "+totMin+"분")),
+    h("div",{key:"sh",className:"tiny",style:{margin:"4px 0 10px"}},"단계를 탭하면 편집, ▲▼로 순서 변경"),
+    steps[0].length===0
+      ? h("div",{key:"se",className:"tiny",style:{padding:"8px 2px"}},"아직 단계가 없어요. 아래에서 추가하세요")
+      : h("div",{key:"sl"},stepListEl),
+    h("button",{key:"as",className:"btn ghost",style:{marginTop:6},onClick:function(){pickPreset[1](true);}},"+ 단계 추가"),
+    h("div",{key:"gap",style:{height:16}}),
+    h("button",{key:"sv",className:"btn",onClick:save},"레시피 저장"),
+    !r0._new&&h("button",{key:"dl",className:"btn ghost danger",style:{marginTop:10},onClick:del},"레시피 삭제")
+  ]});
+  return h("div",null, bodyEl,
+    editStep[0]&&h(StepEditor,{ctx:ctx,step:editStep[0],
+      close:function(){editStep[1](null);},
+      onSave:function(st){if(st._new){delete st._new;addStep(st);}else updStep(st);editStep[1](null);},
+      onDelete:function(id){delStep(id);editStep[1](null);}}),
+    pickPreset[0]&&h(PresetPicker,{ctx:ctx,
+      close:function(){pickPreset[1](false);},
+      onCustom:function(){pickPreset[1](false);
+        editStep[1]({_new:true,id:uid(),name:"",cat:"",chemIds:[],equipIds:[],dilution:"",tools:"",estMin:0,panel:"",tags:[],usedMl:0});},
+      onPick:function(p){pickPreset[1](false);
+        var chem=ctx.chem.find(function(c){return c.cat===p.cat;});
+        var eq=p.eq?ctx.equip.find(function(e){return e.type===p.eq;}):null;
+        editStep[1]({_new:true,id:uid(),name:p.n,cat:p.cat,chemIds:chem?[chem.id]:[],
+          equipIds:eq?[eq.id]:[],dilution:"",tools:"",estMin:p.est||0,panel:"",tags:(p.tags||[]).slice(),
+          usedMl:chem&&chem.defaultMl?chem.defaultMl:0});}}));
+}
+
 /* ---------------- DASHBOARD (집계 계층 · 파생함수만 읽음) ---------------- */
 function Dashboard(props){
   var ctx=props.ctx;
+  var showRecipes=useState(false);
+  var washPick=useState(null); // 세차 시작할 차량 {v, rec, recTpl}
   // 빈 상태
   if(ctx.veh.length===0 && ctx.sess.length===0)
     return h("div",null,
       h("div",{className:"empty"},h("div",{className:"e"},"🏠"),
         h("div",null,"환영합니다!"),
         h("div",{className:"tiny",style:{marginTop:6}},"차고에 차량을 등록하고 첫 세차를 계획해보세요")),
-      h("button",{className:"btn",style:{marginTop:8},onClick:function(){ctx.setT("garage");}},"🚗 차량 등록하러 가기"));
+      h("button",{className:"btn",style:{marginTop:8},onClick:function(){ctx.setT("garage");}},"🚗 차량 등록하러 가기"),
+      showRecipes[0]&&h(RecipeManager,{ctx:ctx,close:function(){showRecipes[1](false);}}));
 
   // 경고 요약 (파생함수 읽기)
   var chemCrit=ctx.chem.filter(function(c){return chemStatusGrade(c).level==="crit";});
@@ -884,7 +982,19 @@ function Dashboard(props){
   var spend=spendSummary(ctx.chem);
   var nowYear=String(new Date().getFullYear());
 
+  // 레시피로 세션 생성 (선택 후 실행)
+  function createSession(v, tpl){
+    var steps=(tpl?tpl.steps:[]).map(function(x){
+      return {id:uid(),name:x.name,cat:x.cat||"",chemIds:(x.chemIds||[]).slice(),equipIds:(x.equipIds||[]).slice(),dilution:x.dilution||"",tools:"",estMin:x.estMin||0,panel:x.panel||"",tags:(x.tags||[]).slice(),usedMl:x.usedMl||0,done:false,actualSec:0,_startedAt:null,photos:[]};
+    });
+    var ns={id:uid(),created:Date.now(),title:(tpl?tpl.name:"세차"),date:todayStr(),vehicleId:v.id,status:"planned",runningStepId:null,cost:0,location:"",geo:null,beforePhotos:[],resultPhotos:[],review:{good:"",improve:""},steps:steps};
+    dbPut("sessions",ns).then(ctx.reload).then(function(){washPick[1](null);ctx.setOpen(ns.id);});
+  }
+
   return h("div",null,
+    // ===== 내 레시피 진입구 =====
+    h("button",{className:"btn ghost",style:{marginBottom:14},onClick:function(){showRecipes[1](true);}},"📋 내 레시피 관리"),
+
     // ===== 차량별 카드 =====
     ctx.veh.map(function(v){
       var rec=washRecommend(v, ctx.sess);
@@ -892,11 +1002,7 @@ function Dashboard(props){
       var sit=recipeSituation(rec.sitKey);
       var recTpl=ctx.tpl.find(function(t){return t.situation===rec.sitKey;}) || ctx.tpl[0];
       function startWash(){
-        var steps=(recTpl?recTpl.steps:[]).map(function(x){
-          return {id:uid(),name:x.name,cat:x.cat||"",chemIds:(x.chemIds||[]).slice(),equipIds:(x.equipIds||[]).slice(),dilution:x.dilution||"",tools:"",estMin:x.estMin||0,panel:x.panel||"",tags:(x.tags||[]).slice(),usedMl:x.usedMl||0,done:false,actualSec:0,_startedAt:null,photos:[]};
-        });
-        var ns={id:uid(),created:Date.now(),title:(recTpl?recTpl.name:"세차"),date:todayStr(),vehicleId:v.id,status:"planned",runningStepId:null,cost:0,location:"",geo:null,beforePhotos:[],resultPhotos:[],review:{good:"",improve:""},steps:steps};
-        dbPut("sessions",ns).then(ctx.reload).then(function(){ctx.setOpen(ns.id);});
+        washPick[1]({v:v, rec:rec, recTpl:recTpl});
       }
       var headerEl=h("div",{className:"row",style:{padding:"14px 14px 10px"}},
         v.photo?h("img",{className:"thumb",src:v.photo}):h("div",{className:"thumb"},"🚗"),
@@ -947,7 +1053,45 @@ function Dashboard(props){
 
     // ===== 빠른 액션 =====
     h("button",{className:"btn ghost",style:{marginTop:4},onClick:function(){ctx.setT("sessions");}},"📋 전체 세차 기록 보기"),
-    h("div",{style:{height:20}}));
+    h("div",{style:{height:20}}),
+    showRecipes[0]&&h(RecipeManager,{ctx:ctx,close:function(){showRecipes[1](false);}}),
+    washPick[0]&&h(WashStartSheet,{ctx:ctx,pick:washPick[0],
+      close:function(){washPick[1](null);},
+      onChoose:function(tpl){createSession(washPick[0].v, tpl);}}));
+}
+
+/* 세차 시작 선택 시트: 추천 강조 + 다른 레시피 + 빈 세션 */
+function WashStartSheet(props){
+  var ctx=props.ctx, pick=props.pick;
+  var rec=pick.rec, recTpl=pick.recTpl, v=pick.v;
+  var sit=recipeSituation(rec.sitKey);
+  var others=ctx.tpl.filter(function(t){return !recTpl||t.id!==recTpl.id;});
+  return h(Sheet,{close:props.close,title:v.name+" 세차 시작",children:[
+    h("div",{key:"h",className:"tiny",style:{marginBottom:12}},
+      "마지막 세차 "+(rec.daysAgo==null?"기록 없음":rec.daysAgo+"일 전")+" · 오염도 "+rec.soil+". 레시피를 골라 시작하세요."),
+    // 추천 강조
+    recTpl&&h("div",{key:"rec",className:"card",style:{borderColor:"var(--accent)",marginBottom:8},onClick:function(){props.onChoose(recTpl);}},
+      h("div",{className:"row between"},
+        h("div",{className:"grow"},
+          h("div",{className:"tiny",style:{color:"var(--accent)"}},"⭐ 오늘 추천"),
+          h("div",{style:{fontWeight:700,fontSize:16,marginTop:2}},(sit?sit.icon+" ":"")+recTpl.name),
+          h("div",{className:"tiny",style:{marginTop:2}},recTpl.steps.length+"단계 · 약 "+recTpl.steps.reduce(function(a,x){return a+(x.estMin||0);},0)+"분")),
+        h("span",{className:"btn",style:{width:"auto",padding:"8px 16px",flex:"none"}},"시작"))),
+    // 다른 레시피
+    others.length>0&&h("div",{key:"ol",className:"sectit",style:{marginTop:6}},"다른 레시피로 시작"),
+    others.map(function(t){
+      var s2=recipeSituation(t.situation);
+      return h("div",{key:t.id,className:"card tap",style:{marginBottom:6},onClick:function(){props.onChoose(t);}},
+        h("div",{className:"row between"},
+          h("div",{className:"grow"},
+            h("div",{style:{fontWeight:700}},(s2?s2.icon+" ":"")+t.name),
+            h("div",{className:"tiny",style:{marginTop:2}},t.steps.length+"단계 · 약 "+t.steps.reduce(function(a,x){return a+(x.estMin||0);},0)+"분")),
+          h("span",{className:"hbtn",style:{flex:"none"}},"›")));
+    }),
+    // 빈 세션
+    h("button",{key:"empty",className:"btn ghost",style:{marginTop:8},onClick:function(){props.onChoose(null);}},"빈 세션으로 시작 (직접 구성)"),
+    h("div",{key:"sp",style:{height:10}})
+  ]});
 }
 
 /* ---------------- SESSIONS LIST ---------------- */
@@ -1328,6 +1472,7 @@ function SessionRun(props){
 
       h("div",{style:{height:14}}),
       s.status==="done"&&h("button",{className:"btn",style:{marginBottom:10,background:"var(--gold)",color:"#1a1300"},onClick:function(){showReport[1](true);}},"📄 세차 리포트 보기"),
+      s.status==="done"&&h("button",{className:"btn ghost",style:{marginBottom:10},onClick:function(){tplSave[1](true);}},"📋 이 세차를 레시피로 저장"),
       s.status!=="done"
         ? h("button",{className:"btn",onClick:completeSession},"✓ 세차 완료 (케미컬 차감)")
         : h("button",{className:"btn ghost",onClick:function(){patch({status:"plan"});}},"완료 취소"),
@@ -1620,7 +1765,7 @@ function GarageTab(props){
                 h("span",{className:"tiny"},cs.expDate+" 까지")),
               h("div",{className:"gauge "+(cs.state==="expired"?"crit":cs.state==="soon"?"low":"")},h("div",{style:{width:cs.pct+"%"}}))))));
     }),
-    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",model:"",plate:"",photo:"",coating:null});}},"+"),
+    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",model:"",plate:"",photo:"",coating:null,careCycle:null});}},"+"),
     edit[0]&&h(VehicleEditor,{v:edit[0],ctx:ctx,close:function(){edit[1](null);}}));
 }
 
@@ -1674,9 +1819,18 @@ function VehicleEditor(props){
   var name=useState(v0.name),model=useState(v0.model),plate=useState(v0.plate),photo=useState(v0.photo);
   var ct=v0.coating||{};
   var cType=useState(ct.type||""),cDate=useState(ct.date||""),cMonths=useState(ct.months||0);
+  var cc=v0.careCycle||{};
+  var ccWash=useState(cc.wash||""),ccWax=useState(cc.wax||""),ccSealant=useState(cc.sealant||""),ccCoating=useState(cc.coating||"");
+  var showCare=useState(false);
   function save(){if(!name[0].trim()){alert("차량 이름을 입력하세요");return;}
     var coating=(cType[0]&&cDate[0]&&cMonths[0])?{type:cType[0],date:cDate[0],months:parseInt(cMonths[0])||0}:null;
-    dbPut("vehicles",{id:v0.id,name:name[0].trim(),model:model[0],plate:plate[0],photo:photo[0],coating:coating}).then(ctx.reload).then(props.close);}
+    var careCycle={};
+    if(parseInt(ccWash[0])>0) careCycle.wash=parseInt(ccWash[0]);
+    if(parseInt(ccWax[0])>0) careCycle.wax=parseInt(ccWax[0]);
+    if(parseInt(ccSealant[0])>0) careCycle.sealant=parseInt(ccSealant[0]);
+    if(parseInt(ccCoating[0])>0) careCycle.coating=parseInt(ccCoating[0]);
+    var hasCare=Object.keys(careCycle).length>0;
+    dbPut("vehicles",{id:v0.id,name:name[0].trim(),model:model[0],plate:plate[0],photo:photo[0],coating:coating,careCycle:hasCare?careCycle:null}).then(ctx.reload).then(props.close);}
   var cs=(cType[0]&&cDate[0]&&cMonths[0])?coatingStatus({type:cType[0],date:cDate[0],months:parseInt(cMonths[0])}):null;
   return h(Sheet,{close:props.close,title:v0._new?"차량 등록":"차량 편집",children:[
     h(PhotoInput,{key:"pi",photo:photo[0],onChange:function(d){photo[1](d);}}),
@@ -1700,6 +1854,23 @@ function VehicleEditor(props){
     cs&&h("div",{key:"cs",className:"tiny",style:{marginTop:8,color:cs.state==="expired"?"var(--bad)":cs.state==="soon"?"var(--warn)":"var(--good)"}},
       cs.state==="expired"?("만료됨 ("+(-cs.daysLeft)+"일 경과) — 재시공 시기"):("만료까지 D-"+cs.daysLeft+" · "+cs.expDate)),
     (cType[0]||cDate[0])&&h("button",{key:"cclr",className:"chip sm",style:{marginTop:8,color:"var(--txt3)"},onClick:function(){cType[1]("");cDate[1]("");cMonths[1](0);}},"코팅 정보 지우기"),
+
+    h("div",{key:"ccdiv",className:"divider"}),
+    h("div",{key:"cctit",className:"row between tap",onClick:function(){showCare[1](!showCare[0]);},style:{cursor:"pointer"}},
+      h("div",{className:"sectit",style:{margin:0}},"🔄 유지관리 주기 (선택)"),
+      h("span",{className:"tiny"},showCare[0]?"접기 ▲":"펼치기 ▼")),
+    showCare[0]&&h("div",{key:"cch",className:"tiny",style:{margin:"6px 0 10px"}},
+      "대시보드 '오늘 추천'에 반영돼요. 비워두면 기본값으로 동작해요."),
+    showCare[0]&&h("div",{key:"ccg",className:"row",style:{gap:8}},
+      h("div",{className:"grow"},h("label",{className:"fl"},"세차 주기(일)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",placeholder:"기본 "+CARE_DEFAULTS.wash,value:ccWash[0]||"",onChange:function(e){ccWash[1](e.target.value);}})),
+      h("div",{className:"grow"},h("label",{className:"fl"},"왁스 주기(일)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",placeholder:"기본 "+CARE_DEFAULTS.wax,value:ccWax[0]||"",onChange:function(e){ccWax[1](e.target.value);}}))),
+    showCare[0]&&h("div",{key:"ccg2",className:"row",style:{gap:8,marginTop:8}},
+      h("div",{className:"grow"},h("label",{className:"fl"},"실란트 주기(일)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",placeholder:"기본 "+CARE_DEFAULTS.sealant,value:ccSealant[0]||"",onChange:function(e){ccSealant[1](e.target.value);}})),
+      h("div",{className:"grow"},h("label",{className:"fl"},"코팅 재시공(일)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",placeholder:"기본 "+CARE_DEFAULTS.coating,value:ccCoating[0]||"",onChange:function(e){ccCoating[1](e.target.value);}}))),
 
     h("div",{key:7,style:{height:18}}),
     h("button",{key:8,className:"btn",onClick:save},"저장"),
