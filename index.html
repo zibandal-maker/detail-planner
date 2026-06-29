@@ -467,6 +467,27 @@ function loadImgUrl(url,cb){
   img.onerror=function(){alert("이미지 URL을 불러오지 못했어요.");};
   img.src=url;
 }
+// read image directly from clipboard (mobile-friendly: long-press image → Copy → tap this)
+function readClipboardImage(cb){
+  if(!navigator.clipboard||!navigator.clipboard.read){
+    alert("이 브라우저는 클립보드 읽기를 지원하지 않아요.\n사진을 갤러리에 저장한 뒤 '탭하여 선택'으로 올려주세요.");
+    return;
+  }
+  navigator.clipboard.read().then(function(items){
+    for(var i=0;i<items.length;i++){
+      var types=items[i].types;
+      for(var j=0;j<types.length;j++){
+        if(types[j].indexOf("image")===0){
+          items[i].getType(types[j]).then(function(blob){ resizeImg(blob,cb); });
+          return;
+        }
+      }
+    }
+    alert("클립보드에 이미지가 없어요.\n구글 이미지에서 사진을 길게 눌러 '이미지 복사' 후 다시 시도하세요.");
+  }).catch(function(err){
+    alert("클립보드를 읽지 못했어요. 권한을 허용했는지 확인하거나,\n사진을 갤러리에 저장한 뒤 '탭하여 선택'으로 올려주세요.");
+  });
+}
 
 /* photo picker with paste/drop support (for product/vehicle photos) */
 function PhotoInput(props){ // props: photo, onChange, big
@@ -485,14 +506,19 @@ function PhotoInput(props){ // props: photo, onChange, big
         props.photo?{backgroundImage:"url("+props.photo+")",backgroundSize:"cover",backgroundPosition:"center"}:{})},
       !props.photo&&h("div",{style:{textAlign:"center",color:"var(--txt3)",fontSize:14}},
         h("div",{style:{fontSize:30}},"📷"),
-        h("div",{style:{marginTop:4}},"탭하여 선택 · 붙여넣기(Ctrl+V)"))),
+        h("div",{style:{marginTop:4}},"탭하여 갤러리에서 선택"))),
     h("input",{ref:fileRef,type:"file",accept:"image/*",className:"hidden",onChange:pickFile}),
     h("div",{className:"row",style:{gap:8,marginTop:8}},
-      h("button",{className:"btn ghost sm",style:{flex:1},onClick:function(){
-        var url=prompt("이미지 URL 붙여넣기 (구글 이미지에서 '이미지 주소 복사')");
+      h("button",{className:"btn ghost sm",style:{flex:1},onClick:function(){readClipboardImage(props.onChange);}},"📋 클립보드에서 붙여넣기"),
+      props.photo&&h("button",{className:"btn ghost sm",onClick:function(){props.onChange("");}},"제거")),
+    h("div",{className:"row",style:{gap:8,marginTop:8}},
+      h("button",{className:"btn ghost sm",style:{flex:1,fontSize:13},onClick:function(){
+        var url=prompt("이미지 URL 붙여넣기 (PC: 구글 이미지에서 '이미지 주소 복사')");
         if(url)loadImgUrl(url.trim(),props.onChange);
-      }},"🔗 URL로 추가"),
-      props.photo&&h("button",{className:"btn ghost sm",onClick:function(){props.onChange("");}},"제거")));
+      }},"🔗 URL로 추가")),
+    h("div",{className:"tiny",style:{marginTop:7,lineHeight:1.5}},
+      "📱 모바일: 구글 이미지에서 사진을 길게 눌러 ",h("b",null,"이미지 복사"),
+      " → 위 ",h("b",null,"클립보드에서 붙여넣기"),". 안 되면 사진을 갤러리에 저장 후 ",h("b",null,"탭하여 선택"),"."));
 }
 
 function fmtClock(s){var m=Math.floor(s/60),ss=s%60;return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss;}
