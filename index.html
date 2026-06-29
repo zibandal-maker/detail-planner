@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#070a12">
+<title>Detailing Log</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DetailLog">
+<meta name="description" content="세차 디테일링 세션 계획·실행·복기 + 케미컬/장비 인벤토리 관리">
+<script>window.DEMO_MODE = false;</script>
+<style>
+:root{
+  --bg:#070a12; --bg2:#0b1020;
+  --surface:rgba(22,28,46,.66); --surface-solid:#161c2e;
+  --surface2:rgba(31,40,64,.55); --surface2-solid:#1f2840;
+  --line:rgba(120,140,190,.16); --line2:rgba(120,140,190,.28);
+  --txt:#eef2fb; --txt2:#9fabc7; --txt3:#6b7798;
+  --c1:#22d3ee; --c2:#7c5cff; --c3:#b14dff;
+  --accent:#3fd7e6; --accent-ink:#03171c;
+  --gold:#e0b352;
+  --good:#34e0a1; --warn:#f5b945; --bad:#ff5d6c;
+  --grad:linear-gradient(120deg,#22d3ee 0%,#5b8cff 48%,#b14dff 100%);
+  --grad-soft:linear-gradient(120deg,rgba(34,211,238,.16),rgba(177,77,255,.16));
+  --r:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  font-size:16px;line-height:1.45;overscroll-behavior-y:none}
+body{padding-bottom:80px;background:var(--bg);
+  background-image:
+    radial-gradient(900px 500px at 8% -8%,rgba(34,211,238,.16),transparent 60%),
+    radial-gradient(900px 600px at 108% 4%,rgba(177,77,255,.16),transparent 60%),
+    radial-gradient(700px 500px at 50% 108%,rgba(91,140,255,.10),transparent 60%);
+  background-attachment:fixed}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px}
+.hidden{display:none!important}
+::selection{background:rgba(124,92,255,.4)}
+
+header{position:sticky;top:0;z-index:30;
+  background:linear-gradient(180deg,rgba(7,10,18,.92),rgba(7,10,18,.62));
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--line);
+  padding:15px 16px 13px;display:flex;align-items:center;gap:10px}
+header h1{font-size:18px;margin:0;font-weight:800;letter-spacing:-.2px;flex:1}
+header h1 .dot{
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent}
+.hbtn{width:40px;height:40px;border-radius:12px;
+  background:var(--surface2);border:1px solid var(--line);
+  backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+.hbtn:active{transform:scale(.94)}
+
+main{padding:18px 16px;max-width:680px;margin:0 auto}
+
+nav{position:fixed;bottom:0;left:0;right:0;z-index:30;
+  background:linear-gradient(0deg,rgba(7,10,18,.96),rgba(7,10,18,.7));
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-top:1px solid var(--line);
+  display:flex;padding:8px 2px calc(8px + env(safe-area-inset-bottom))}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:6px 0;color:var(--txt3);font-size:10.5px;font-weight:700;
+  position:relative;transition:color .2s}
+nav button .ic{font-size:21px;line-height:1;transition:transform .2s}
+nav button.on{color:var(--txt)}
+nav button.on .ic{transform:translateY(-1px)}
+nav button.on::before{content:"";position:absolute;top:-8px;width:26px;height:3px;
+  border-radius:3px;background:var(--grad);box-shadow:0 0 12px rgba(91,140,255,.7)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:17px;margin-bottom:13px;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  box-shadow:0 8px 28px rgba(2,5,16,.45),inset 0 1px 0 rgba(255,255,255,.05)}
+.card.tap{transition:transform .1s,border-color .2s}
+.card.tap:active{transform:scale(.987);border-color:var(--line2)}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.muted{color:var(--txt2);font-size:14px}
+.tiny{color:var(--txt3);font-size:12px}
+.ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sectit{font-size:12px;font-weight:800;color:var(--txt3);text-transform:uppercase;
+  letter-spacing:1.4px;margin:6px 2px 11px}
+
+.btn{background:var(--grad);color:#fff;font-weight:800;padding:14px 16px;
+  border-radius:13px;font-size:15px;display:inline-flex;align-items:center;
+  justify-content:center;gap:7px;width:100%;letter-spacing:.2px;
+  box-shadow:0 6px 20px rgba(91,140,255,.32),inset 0 1px 0 rgba(255,255,255,.25)}
+.btn:active{filter:brightness(.95);transform:translateY(1px)}
+.btn.ghost{background:var(--surface2);color:var(--txt);border:1px solid var(--line);box-shadow:none}
+.btn.ghost:active{background:var(--surface2-solid)}
+.btn.sm{padding:10px 14px;font-size:14px;width:auto;border-radius:11px}
+.btn.danger{background:linear-gradient(120deg,#ff5d6c,#ff7a3d);color:#fff}
+
+.fab{position:fixed;right:18px;bottom:calc(82px + env(safe-area-inset-bottom));z-index:25;
+  width:60px;height:60px;border-radius:50%;background:var(--grad);color:#fff;
+  font-size:30px;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 10px 30px rgba(124,92,255,.5),inset 0 1px 0 rgba(255,255,255,.3);font-weight:300}
+.fab:active{transform:scale(.92)}
+
+label.fl{display:block;font-size:13px;color:var(--txt2);margin:15px 0 7px;font-weight:700}
+.inp{width:100%;background:var(--surface2-solid);border:1px solid var(--line);color:var(--txt);
+  padding:13px;border-radius:12px;outline:none;transition:border-color .2s,box-shadow .2s}
+.inp:focus{border-color:transparent;box-shadow:0 0 0 1.5px var(--c1),0 0 18px rgba(34,211,238,.25)}
+textarea.inp{resize:vertical;min-height:64px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--surface2);border:1px solid var(--line);color:var(--txt2);
+  padding:7px 12px;border-radius:22px;font-size:13px;font-weight:700;transition:all .15s}
+.chip.on{background:var(--grad);color:#fff;border-color:transparent;
+  box-shadow:0 4px 14px rgba(91,140,255,.4)}
+.chip.tag{background:rgba(224,179,82,.12);border-color:rgba(224,179,82,.32);color:var(--gold)}
+.chip.sm{padding:4px 10px;font-size:12px}
+
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(3,6,14,.66);
+  backdrop-filter:blur(4px);display:flex;align-items:flex-end;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.sheet{background:linear-gradient(180deg,var(--surface-solid),#0c1120);
+  width:100%;max-width:680px;margin:0 auto;
+  border:1px solid var(--line);border-bottom:none;
+  border-radius:24px 24px 0 0;max-height:93vh;overflow-y:auto;
+  padding:8px 17px calc(22px + env(safe-area-inset-bottom));
+  animation:slup .3s cubic-bezier(.2,.85,.25,1);
+  box-shadow:0 -16px 50px rgba(2,5,16,.6)}
+@keyframes slup{from{transform:translateY(100%)}}
+.grab{width:40px;height:4px;background:var(--line2);border-radius:3px;margin:9px auto 14px}
+.sheet h2{font-size:20px;margin:4px 0 17px;font-weight:800;letter-spacing:-.2px}
+
+.thumb{width:56px;height:56px;border-radius:13px;object-fit:cover;
+  background:var(--surface2-solid);border:1px solid var(--line);
+  flex:none;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--txt3)}
+.thumb.lg{width:100%;height:180px;border-radius:16px;object-fit:cover}
+.photogrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.photogrid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+
+.step{background:var(--surface2);border:1px solid var(--line);border-radius:15px;
+  padding:13px;margin-bottom:11px;backdrop-filter:blur(10px);
+  box-shadow:0 4px 16px rgba(2,5,16,.3)}
+.step.done{opacity:.55}
+.step.active{border-color:transparent;
+  box-shadow:0 0 0 1.5px var(--c1),0 0 24px rgba(34,211,238,.3);
+  background:linear-gradient(120deg,rgba(34,211,238,.08),rgba(124,92,255,.08))}
+.stepnum{width:25px;height:25px;border-radius:8px;
+  background:var(--grad);color:#fff;
+  font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;
+  box-shadow:0 2px 8px rgba(91,140,255,.4)}
+.check{width:30px;height:30px;border-radius:9px;border:2px solid var(--line2);flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .2s}
+.check.on{background:var(--good);border-color:var(--good);color:#03171c;
+  box-shadow:0 0 14px rgba(52,224,161,.5)}
+
+.timer{font-variant-numeric:tabular-nums;font-size:16px;font-weight:800;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:-.3px}
+.statbox{background:var(--surface2);border:1px solid var(--line);border-radius:15px;
+  padding:14px 10px;text-align:center;flex:1;min-width:0;backdrop-filter:blur(10px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.statbox .n{font-size:23px;font-weight:800;letter-spacing:-.5px}
+.statbox .l{font-size:10.5px;color:var(--txt3);margin-top:3px;text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+
+.empty{text-align:center;padding:54px 20px;color:var(--txt3)}
+.empty .e{font-size:50px;margin-bottom:14px;
+  filter:drop-shadow(0 4px 16px rgba(124,92,255,.4))}
+.deltapos{color:var(--good)} .deltaneg{color:var(--bad)}
+.divider{height:1px;background:var(--line);margin:16px 0}
+.badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:8px;
+  background:var(--surface2-solid);color:var(--txt2);border:1px solid var(--line)}
+
+.gauge{height:8px;background:rgba(0,0,0,.35);border-radius:5px;overflow:hidden;margin-top:7px;
+  border:1px solid var(--line)}
+.gauge>div{height:100%;background:linear-gradient(90deg,#34e0a1,#22d3ee);transition:width .4s;
+  box-shadow:0 0 10px rgba(52,224,161,.5)}
+.gauge.low>div{background:linear-gradient(90deg,#f5b945,#ffd66e);box-shadow:0 0 10px rgba(245,185,69,.5)}
+.gauge.crit>div{background:linear-gradient(90deg,#ff5d6c,#ff8a5d);box-shadow:0 0 10px rgba(255,93,108,.5)}
+
+/* report stays light/print-friendly, with ceramic gradient header */
+.report{background:#fff;color:#15171e;border-radius:18px;overflow:hidden;
+  box-shadow:0 16px 50px rgba(2,5,16,.5)}
+.report .rhead{background:linear-gradient(120deg,#0b1020,#1a1740 55%,#2a1a4d);color:#fff;padding:22px;position:relative;overflow:hidden}
+.report .rhead::after{content:"";position:absolute;inset:0;
+  background:radial-gradient(400px 200px at 90% -20%,rgba(34,211,238,.35),transparent 60%)}
+.report .rbody{padding:19px}
+.report h3{margin:0 0 4px;font-size:22px;font-weight:800;position:relative}
+.report .rsec{margin:19px 0}
+.report .rsec h4{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#8a90a3;margin:0 0 9px;font-weight:800}
+.report table{width:100%;border-collapse:collapse;font-size:13px}
+.report td{padding:7px 4px;border-bottom:1px solid #eef0f4}
+.report .rgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.report .rgrid img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px}
+.report .rstat{display:flex;gap:10px}
+.report .rstat>div{flex:1;background:linear-gradient(160deg,#f5f7fb,#eef1f7);border-radius:12px;padding:11px;text-align:center}
+.report .rstat .n{font-size:19px;font-weight:800;color:#1a1740}
+.report .rstat .l{font-size:10px;color:#8a90a3;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-top:2px}
+
+/* segmented toggle */
+.seg{display:flex;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;padding:9px 0;border-radius:9px;font-size:14px;font-weight:700;color:var(--txt2)}
+.seg button.on{background:var(--grad);color:#fff;box-shadow:0 3px 12px rgba(91,140,255,.35)}
+
+/* calendar */
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.caldow{text-align:center;font-size:11px;font-weight:700;color:var(--txt3);padding:4px 0}
+.caldow.sun{color:#ff8a93} .caldow.sat{color:#7aa7ff}
+.calcell{aspect-ratio:1;border-radius:10px;border:1px solid transparent;
+  display:flex;flex-direction:column;align-items:center;padding-top:5px;cursor:pointer;
+  position:relative;transition:background .15s}
+.calcell:active{background:var(--surface2)}
+.calcell.today{border-color:var(--line2)}
+.calcell.sel{background:var(--grad-soft);border-color:var(--c1)}
+.caldate{font-size:13px;font-weight:700;color:var(--txt)}
+.caldate.sun{color:#ff8a93} .caldate.sat{color:#7aa7ff}
+.caldots{display:flex;gap:3px;margin-top:auto;margin-bottom:7px}
+.caldot{width:5px;height:5px;border-radius:50%}
+.calwx{display:flex;flex-direction:column;align-items:center;line-height:1;margin-top:1px}
+.calwxic{font-size:13px}
+.calpop{font-size:8px;font-weight:700;color:#7aa7ff;margin-top:1px}
+.calcell{padding-top:4px}
+
+/* vehicle timeline */
+.timeline{position:relative;padding-left:6px}
+.tlitem{display:flex;gap:12px;align-items:flex-start;margin-bottom:11px;position:relative}
+.tlitem::before{content:"";position:absolute;left:5px;top:18px;bottom:-11px;width:2px;background:var(--line)}
+.tlitem:last-child::before{display:none}
+.tldot{width:12px;height:12px;border-radius:50%;background:var(--c2);flex:none;margin-top:6px;
+  box-shadow:0 0 0 3px var(--bg),0 0 10px rgba(124,92,255,.5);z-index:1}
+.tldot.coat{background:var(--gold);box-shadow:0 0 0 3px var(--bg),0 0 10px rgba(224,179,82,.6)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+"use strict";
+var h = React.createElement;
+var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef;
+
+/* ===== category system (shared by chemicals + steps) ===== */
+var CATS = [
+  {k:"prewash", n:"프리워시", sub:["알칼리","중성","산성","스노우폼"]},
+  {k:"shampoo", n:"카샴푸", sub:["중성","산성","고발수","클렌징"]},
+  {k:"wheel",   n:"휠/타이어", sub:["휠클리너(산성)","휠클리너(중성)","타이어 드레싱"]},
+  {k:"iron",    n:"철분제거", sub:["아이언리무버","폴아웃"]},
+  {k:"clay",    n:"클레이", sub:["클레이바","클레이타올","루브리컨트"]},
+  {k:"bugtar",  n:"벌레/타르", sub:["벌레제거","타르리무버"]},
+  {k:"polish",  n:"광택", sub:["컴파운드","폴리시","글레이즈","올인원"]},
+  {k:"coating", n:"코팅", sub:["세라믹","글래스코팅","무기물"]},
+  {k:"lsp",     n:"LSP/물왁스", sub:["물왁스","스프레이실란트","왁스","퀵디테일러"]},
+  {k:"glass",   n:"유리", sub:["유리세정","유막제거","발수코팅"]},
+  {k:"interior",n:"실내", sub:["다목적(APC)","가죽","플라스틱/트림","패브릭"]},
+  {k:"etc",     n:"기타", sub:["QD","워터스팟","하부","기타"]}
+];
+function catName(k){ var c=CATS.find(function(x){return x.k===k;}); return c?c.n:"기타"; }
+function catSubs(k){ var c=CATS.find(function(x){return x.k===k;}); return c?c.sub:[]; }
+
+var EQUIP_TYPES=["폴리셔/DA","폼랜서/폼건","압축분무기","고압세척기","워시미트/장갑","버킷","건조타올","어플리케이터","브러시","송풍기","기타"];
+
+/* preset step library — standard detailing order (wheels→prewash→wash→decon→correct→protect→glass→interior→finish) */
+var STEP_PRESETS=[
+  {n:"휠&타이어", cat:"wheel", est:15, tags:["디테일"], eq:"브러시", hint:"가장 먼저 — 브레이크 분진"},
+  {n:"프리린스", cat:"prewash", est:5, tags:["프리워시"], eq:"고압세척기", hint:"느슨한 오염물 제거"},
+  {n:"프리워시", cat:"prewash", est:10, tags:["프리워시","폼"], eq:"폼랜서/폼건", hint:"5분 댐웰 후 헹굼"},
+  {n:"벌레/타르 제거", cat:"bugtar", est:8, tags:["벌레/타르"], eq:"압축분무기", hint:"하부·범퍼 집중"},
+  {n:"본세차", cat:"shampoo", est:20, tags:["본세척"], eq:"워시미트/장갑", hint:"투버킷, 위→아래"},
+  {n:"철분 제거", cat:"iron", est:10, tags:["철분제거"], eq:"압축분무기", hint:"보라색 반응 후 헹굼"},
+  {n:"클레이", cat:"clay", est:20, tags:["점토"], eq:"어플리케이터", hint:"루브 충분히, 마른면 금지"},
+  {n:"재세척/헹굼", cat:"shampoo", est:8, tags:["본세척"], eq:"", hint:"제염 잔여물 제거"},
+  {n:"드라잉", cat:"etc", est:10, tags:["건조"], eq:"건조타올", hint:"위→아래, 워터스팟 주의"},
+  {n:"패널 와이프(IPA)", cat:"etc", est:8, tags:["디테일"], eq:"", hint:"코팅 전 유분 제거"},
+  {n:"광택(컴파운드)", cat:"polish", est:40, tags:["광택"], eq:"폴리셔/DA", hint:"중결함 제거"},
+  {n:"광택(폴리시)", cat:"polish", est:35, tags:["광택"], eq:"폴리셔/DA", hint:"마이크로 스월 마감"},
+  {n:"글레이즈", cat:"polish", est:15, tags:["광택"], eq:"어플리케이터", hint:""},
+  {n:"코팅", cat:"coating", est:30, tags:["코팅/실란트"], eq:"어플리케이터", hint:"플래싱 시간 준수"},
+  {n:"LSP/물왁스", cat:"lsp", est:12, tags:["발수","디테일"], eq:"압축분무기", hint:"젖은 차/마른 차 도포"},
+  {n:"왁스", cat:"lsp", est:20, tags:["왁스"], eq:"어플리케이터", hint:"얇게 도포 후 버핑"},
+  {n:"QD/유지관리", cat:"lsp", est:8, tags:["발수","디테일"], eq:"", hint:"퀵 디테일러"},
+  {n:"유리 세정", cat:"glass", est:12, tags:["디테일"], eq:"", hint:"줄무늬 없이"},
+  {n:"유막 제거", cat:"glass", est:15, tags:["디테일"], eq:"어플리케이터", hint:"산화세륨/전용 패드, 비벼 닦기"},
+  {n:"유리 발수코팅", cat:"glass", est:10, tags:["발수"], eq:"어플리케이터", hint:""},
+  {n:"타이어 드레싱", cat:"wheel", est:8, tags:["디테일"], eq:"어플리케이터", hint:""},
+  {n:"트림 복원/보호", cat:"interior", est:10, tags:["디테일"], eq:"어플리케이터", hint:""},
+  {n:"실내 진공", cat:"interior", est:15, tags:["실내클리닝"], eq:"", hint:""},
+  {n:"실내 APC 클리닝", cat:"interior", est:20, tags:["실내클리닝"], eq:"브러시", hint:""},
+  {n:"가죽 클리닝/컨디셔닝", cat:"interior", est:15, tags:["가죽"], eq:"", hint:""},
+  {n:"패브릭/매트", cat:"interior", est:15, tags:["실내클리닝"], eq:"브러시", hint:""},
+  {n:"엔진룸", cat:"etc", est:15, tags:["디테일"], eq:"", hint:"전장부 보호"},
+  {n:"워터스팟 제거", cat:"etc", est:10, tags:["디테일"], eq:"", hint:""},
+  {n:"최종 점검", cat:"etc", est:8, tags:["디테일"], eq:"송풍기", hint:"틈새 잔여물 확인"}
+];
+var DILUTIONS=["원액","1:1","1:3","1:4","1:5","1:10","1:15","1:20","1:50","1:100"];
+var SESSION_PRESETS=["간단 세차","풀 디테일링","유막 제거","발수 코팅","실란트/왁스","광택","세라믹 코팅","실내 디테일링","유지관리 세차","신차 시공"];
+
+/* ===== IndexedDB ===== */
+var DB=null;
+var DBNAME=(window.DEMO_MODE?"detaillog_demo":"detaillog");
+function openDB(){
+  return new Promise(function(res,rej){
+    var rq=indexedDB.open(DBNAME,2);
+    rq.onupgradeneeded=function(e){
+      var db=e.target.result;
+      ["vehicles","chemicals","equipment","sessions","templates","kv"].forEach(function(s){
+        if(!db.objectStoreNames.contains(s)) db.createObjectStore(s,{keyPath:"id"});
+      });
+    };
+    rq.onsuccess=function(e){DB=e.target.result;res(DB);};
+    rq.onerror=function(e){rej(e);};
+  });
+}
+function tx(s,m){return DB.transaction(s,m).objectStore(s);}
+function dbAll(s){return new Promise(function(res){var o=[],c=tx(s,"readonly").openCursor();
+  c.onsuccess=function(e){var cur=e.target.result;if(cur){o.push(cur.value);cur.continue();}else res(o);};});}
+function dbPut(s,v){return new Promise(function(res){tx(s,"readwrite").put(v).onsuccess=function(){res(v);};});}
+function dbDel(s,id){return new Promise(function(res){tx(s,"readwrite").delete(id).onsuccess=function(){res();};});}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+
+/* ===== demo seed: fills sample data on first run only ===== */
+function dateOffset(days){var d=new Date();d.setDate(d.getDate()-days);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function seedDemo(){
+  return dbAll("sessions").then(function(existing){
+    if(existing&&existing.length>0) return; // already has data, skip
+    var now=Date.now();
+    var vehicles=[
+      {id:"v_modelx",name:"화이트 펄",model:"Tesla Model X",plate:"서울 12가 3456",photo:"",
+        coating:{type:"세라믹 코팅",date:dateOffset(350),months:12}},
+      {id:"v_gv80",name:"데일리 GV80",model:"Genesis GV80",plate:"경기 78나 9012",photo:"",
+        coating:{type:"물왁스",date:dateOffset(40),months:1}}
+    ];
+    var chemicals=[
+      {id:"ch_snow",name:"액티브 폼",brand:"빌트해머",cat:"prewash",subtype:"스노우폼",notes:"1:10, 폼랜서",photo:"",volMl:1000,remainMl:430,defaultMl:80},
+      {id:"ch_alk",name:"트래픽 필름 리무버",brand:"오토피네사",cat:"prewash",subtype:"알칼리",notes:"하부·묵은때",photo:"",volMl:500,remainMl:120,defaultMl:50},
+      {id:"ch_sham",name:"카샴푸 중성",brand:"가야바",cat:"shampoo",subtype:"중성",notes:"1:1000, 투버킷",photo:"",volMl:1000,remainMl:760,defaultMl:30},
+      {id:"ch_wheel",name:"휠 클리너",brand:"소낙스",cat:"wheel",subtype:"휠클리너(중성)",notes:"원액 분사",photo:"",volMl:750,remainMl:300,defaultMl:60},
+      {id:"ch_iron",name:"아이언X",brand:"카프로",cat:"iron",subtype:"아이언리무버",notes:"보라색 반응",photo:"",volMl:500,remainMl:85,defaultMl:40},
+      {id:"ch_tar",name:"타르 리무버",brand:"발리스톨",cat:"bugtar",subtype:"타르리무버",notes:"",photo:"",volMl:400,remainMl:260,defaultMl:20},
+      {id:"ch_clay",name:"클레이 루브",brand:"본드",cat:"clay",subtype:"루브리컨트",notes:"충분히 분사",photo:"",volMl:1000,remainMl:540,defaultMl:50},
+      {id:"ch_comp",name:"FG400 컴파운드",brand:"멘저나",cat:"polish",subtype:"컴파운드",notes:"오렌지 패드",photo:"",volMl:250,remainMl:160,defaultMl:8},
+      {id:"ch_pol",name:"SF3500 폴리시",brand:"멘저나",cat:"polish",subtype:"폴리시",notes:"블랙 패드",photo:"",volMl:250,remainMl:190,defaultMl:8},
+      {id:"ch_coat",name:"세라믹 코팅 9H",brand:"그래핀웍스",cat:"coating",subtype:"세라믹",notes:"플래싱 1분 후 버핑",photo:"",volMl:50,remainMl:18,defaultMl:3},
+      {id:"ch_bsd",name:"BSD 물왁스",brand:"가야바",cat:"lsp",subtype:"물왁스",notes:"1:5, 젖은차 도포",photo:"",volMl:1000,remainMl:240,defaultMl:20},
+      {id:"ch_qd",name:"퀵 디테일러",brand:"미구아이어스",cat:"lsp",subtype:"퀵디테일러",notes:"",photo:"",volMl:750,remainMl:600,defaultMl:15},
+      {id:"ch_glass",name:"유리 세정제",brand:"스톤어",cat:"glass",subtype:"유리세정",notes:"",photo:"",volMl:500,remainMl:410,defaultMl:20},
+      {id:"ch_oilfilm",name:"유막 제거제",brand:"불스원",cat:"glass",subtype:"유막제거",notes:"산화세륨, 패드 사용",photo:"",volMl:300,remainMl:140,defaultMl:30},
+      {id:"ch_apc",name:"올퍼포스 클리너",brand:"코흐케미",cat:"interior",subtype:"다목적(APC)",notes:"1:10 희석",photo:"",volMl:1000,remainMl:820,defaultMl:40},
+      {id:"ch_tire",name:"타이어 드레싱",brand:"가야바",cat:"wheel",subtype:"타이어 드레싱",notes:"어플리케이터",photo:"",volMl:500,remainMl:350,defaultMl:25}
+    ];
+    var equipment=[
+      {id:"eq_da",name:"루펠 LHR15 마크3",type:"폴리셔/DA",brand:"Rupes",notes:"5인치 백킹플레이트",photo:"",uses:12,lifeLimit:0},
+      {id:"eq_foam",name:"폼랜서 V2",type:"폼랜서/폼건",brand:"MJJC",notes:"",photo:"",uses:24,lifeLimit:0},
+      {id:"eq_press",name:"K5 고압세척기",type:"고압세척기",brand:"Karcher",notes:"",photo:"",uses:24,lifeLimit:0},
+      {id:"eq_spray",name:"압축 분무기 1.5L",type:"압축분무기",brand:"이케아",notes:"프리워시용",photo:"",uses:18,lifeLimit:0},
+      {id:"eq_mitt",name:"양모 워시미트",type:"워시미트/장갑",brand:"람스울",notes:"투버킷 전용",photo:"",uses:26,lifeLimit:30},
+      {id:"eq_towel",name:"드라잉 타올 1200gsm",type:"건조타올",brand:"오토피네사",notes:"세탁 후 재사용",photo:"",uses:31,lifeLimit:30},
+      {id:"eq_brush",name:"휠 브러시 세트",type:"브러시",brand:"몬테카를로",notes:"배럴+페이스",photo:"",uses:20,lifeLimit:0},
+      {id:"eq_blow",name:"송풍기",type:"송풍기",brand:"메탈배큠",notes:"틈새 물기 제거",photo:"",uses:10,lifeLimit:0}
+    ];
+    var templates=[
+      {id:"tpl_full",name:"풀 디테일링",steps:[
+        {id:uid(),name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60},
+        {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80},
+        {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30},
+        {id:uid(),name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:40},
+        {id:uid(),name:"클레이",cat:"clay",chemIds:["ch_clay"],equipIds:[],dilution:"",estMin:20,panel:"외장",tags:["점토"],usedMl:50},
+        {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:10,panel:"전체",tags:["건조"],usedMl:0},
+        {id:uid(),name:"광택(컴파운드)",cat:"polish",chemIds:["ch_comp"],equipIds:["eq_da"],dilution:"",estMin:40,panel:"외장",tags:["광택"],usedMl:8},
+        {id:uid(),name:"LSP/물왁스",cat:"lsp",chemIds:["ch_bsd"],equipIds:["eq_spray"],dilution:"1:5",estMin:12,panel:"전체",tags:["발수"],usedMl:20}
+      ]},
+      {id:"tpl_quick",name:"빠른 유지관리",steps:[
+        {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:8,panel:"전체",tags:["프리워시"],usedMl:80},
+        {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:15,panel:"외장",tags:["본세척"],usedMl:30},
+        {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:8,panel:"전체",tags:["건조"],usedMl:0},
+        {id:uid(),name:"QD/유지관리",cat:"lsp",chemIds:["ch_qd"],equipIds:[],dilution:"",estMin:8,panel:"전체",tags:["발수","디테일"],usedMl:15}
+      ]}
+    ];
+    // a completed session (last week) + an in-progress session (today)
+    var sessions=[
+      {id:"s_done1",created:now-86400000*7,title:"7월 풀 디테일링",date:dateOffset(7),vehicleId:"v_modelx",
+        status:"done",runningStepId:null,cost:0,location:"자택 차고",geo:{lat:37.2636,lng:127.0286},
+        beforePhotos:[],resultPhotos:[],review:{good:"클레이 후 면이 확실히 매끈해짐. 컴파운드 1스텝으로 스월 대부분 제거.",improve:"철분 제거 시간을 더 길게. 댐웰 부족했음."},
+        steps:[
+          {id:uid(),name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:1020,_startedAt:null,photos:[]},
+          {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80,done:true,actualSec:540,_startedAt:null,photos:[]},
+          {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30,done:true,actualSec:1380,_startedAt:null,photos:[]},
+          {id:uid(),name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:40,done:true,actualSec:900,_startedAt:null,photos:[]},
+          {id:uid(),name:"클레이",cat:"clay",chemIds:["ch_clay"],equipIds:[],dilution:"",estMin:20,panel:"외장",tags:["점토"],usedMl:50,done:true,actualSec:1500,_startedAt:null,photos:[]},
+          {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:10,panel:"전체",tags:["건조"],usedMl:0,done:true,actualSec:600,_startedAt:null,photos:[]},
+          {id:uid(),name:"광택(컴파운드)",cat:"polish",chemIds:["ch_comp"],equipIds:["eq_da"],dilution:"",estMin:40,panel:"외장",tags:["광택"],usedMl:8,done:true,actualSec:2760,_startedAt:null,photos:[]},
+          {id:uid(),name:"LSP/물왁스",cat:"lsp",chemIds:["ch_bsd"],equipIds:["eq_spray"],dilution:"1:5",estMin:12,panel:"전체",tags:["발수"],usedMl:20,done:true,actualSec:660,_startedAt:null,photos:[]}
+        ]},
+      {id:"s_done2",created:now-86400000*3,title:"빠른 유지관리",date:dateOffset(3),vehicleId:"v_gv80",
+        status:"done",runningStepId:null,cost:9000,location:"셀프세차장",geo:null,
+        beforePhotos:[],resultPhotos:[],review:{good:"QD 마감 광 좋음",improve:""},
+        steps:[
+          {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:8,panel:"전체",tags:["프리워시"],usedMl:80,done:true,actualSec:480,_startedAt:null,photos:[]},
+          {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:15,panel:"외장",tags:["본세척"],usedMl:30,done:true,actualSec:960,_startedAt:null,photos:[]},
+          {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:8,panel:"전체",tags:["건조"],usedMl:0,done:true,actualSec:540,_startedAt:null,photos:[]},
+          {id:uid(),name:"QD/유지관리",cat:"lsp",chemIds:["ch_qd"],equipIds:[],dilution:"",estMin:8,panel:"전체",tags:["발수","디테일"],usedMl:15,done:true,actualSec:420,_startedAt:null,photos:[]}
+        ]},
+      {id:"s_active",created:now,title:"오늘 외부 디테일링",date:dateOffset(0),vehicleId:"v_modelx",
+        status:"running",runningStepId:"st_active2",cost:0,location:"자택 차고",geo:{lat:37.2636,lng:127.0286},
+        beforePhotos:[],resultPhotos:[],review:{good:"",improve:""},
+        steps:[
+          {id:"st_active1",name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:840,_startedAt:null,photos:[]},
+          {id:"st_active2",name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80,done:false,actualSec:180,_startedAt:now-120000,photos:[]},
+          {id:"st_active3",name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30,done:false,actualSec:0,_startedAt:null,photos:[]},
+          {id:"st_active4",name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:40,done:false,actualSec:0,_startedAt:null,photos:[]},
+          {id:"st_active5",name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:10,panel:"전체",tags:["건조"],usedMl:0,done:false,actualSec:0,_startedAt:null,photos:[]},
+          {id:"st_active6",name:"LSP/물왁스",cat:"lsp",chemIds:["ch_bsd"],equipIds:["eq_spray"],dilution:"1:5",estMin:12,panel:"전체",tags:["발수"],usedMl:20,done:false,actualSec:0,_startedAt:null,photos:[]}
+        ]}
+    ];
+    var ops=[];
+    vehicles.forEach(function(v){ops.push(dbPut("vehicles",v));});
+    chemicals.forEach(function(c){ops.push(dbPut("chemicals",c));});
+    equipment.forEach(function(e){ops.push(dbPut("equipment",e));});
+    templates.forEach(function(t){ops.push(dbPut("templates",t));});
+    sessions.forEach(function(s){ops.push(dbPut("sessions",s));});
+    return Promise.all(ops);
+  });
+}
+
+function resizeImg(file,cb){
+  var r=new FileReader();
+  r.onload=function(){var img=new Image();img.onload=function(){
+    var max=1280,w=img.width,hh=img.height;
+    if(w>hh&&w>max){hh=Math.round(hh*max/w);w=max;}else if(hh>max){w=Math.round(w*max/hh);hh=max;}
+    var cv=document.createElement("canvas");cv.width=w;cv.height=hh;
+    cv.getContext("2d").drawImage(img,0,0,w,hh);cb(cv.toDataURL("image/jpeg",0.72));
+  };img.src=r.result;};r.readAsDataURL(file);
+}
+// extract an image File from a paste/drop event; returns true if handled
+function imageFromEvent(e,cb){
+  var items=(e.clipboardData||e.dataTransfer||{}).items;
+  if(items){
+    for(var i=0;i<items.length;i++){
+      if(items[i].type&&items[i].type.indexOf("image")===0){
+        var f=items[i].getAsFile(); if(f){resizeImg(f,cb);return true;}
+      }
+    }
+  }
+  var files=(e.dataTransfer&&e.dataTransfer.files)||null;
+  if(files&&files.length&&files[0].type.indexOf("image")===0){resizeImg(files[0],cb);return true;}
+  // try pasted URL text
+  var txt=(e.clipboardData||{}).getData&&e.clipboardData.getData("text");
+  if(txt&&/^https?:\/\//.test(txt.trim())){ loadImgUrl(txt.trim(),cb); return true; }
+  return false;
+}
+function loadImgUrl(url,cb){
+  var img=new Image();img.crossOrigin="anonymous";
+  img.onload=function(){
+    var max=1280,w=img.width,hh=img.height;
+    if(w>hh&&w>max){hh=Math.round(hh*max/w);w=max;}else if(hh>max){w=Math.round(w*max/hh);hh=max;}
+    var cv=document.createElement("canvas");cv.width=w;cv.height=hh;
+    try{cv.getContext("2d").drawImage(img,0,0,w,hh);cb(cv.toDataURL("image/jpeg",0.72));}
+    catch(err){alert("이 이미지는 보안 정책상 가져올 수 없어요. 이미지를 복사해서 붙여넣어 보세요.");}
+  };
+  img.onerror=function(){alert("이미지 URL을 불러오지 못했어요.");};
+  img.src=url;
+}
+
+/* photo picker with paste/drop support (for product/vehicle photos) */
+function PhotoInput(props){ // props: photo, onChange, big
+  var fileRef=useRef(null), drag=useState(false);
+  function pickFile(e){if(e.target.files[0])resizeImg(e.target.files[0],props.onChange);e.target.value="";}
+  function onPaste(e){ if(imageFromEvent(e,props.onChange)) e.preventDefault(); }
+  function onDrop(e){e.preventDefault();drag[1](false);imageFromEvent(e,props.onChange);}
+  return h("div",null,
+    h("div",{tabIndex:0,onPaste:onPaste,
+      onDragOver:function(e){e.preventDefault();drag[1](true);},
+      onDragLeave:function(){drag[1](false);},onDrop:onDrop,
+      onClick:function(){fileRef.current.click();},
+      className:"thumb lg",
+      style:Object.assign({cursor:"pointer",outline:"none",position:"relative"},
+        drag[0]?{borderColor:"var(--c1)",boxShadow:"0 0 0 1.5px var(--c1)"}:{},
+        props.photo?{backgroundImage:"url("+props.photo+")",backgroundSize:"cover",backgroundPosition:"center"}:{})},
+      !props.photo&&h("div",{style:{textAlign:"center",color:"var(--txt3)",fontSize:14}},
+        h("div",{style:{fontSize:30}},"📷"),
+        h("div",{style:{marginTop:4}},"탭하여 선택 · 붙여넣기(Ctrl+V)"))),
+    h("input",{ref:fileRef,type:"file",accept:"image/*",className:"hidden",onChange:pickFile}),
+    h("div",{className:"row",style:{gap:8,marginTop:8}},
+      h("button",{className:"btn ghost sm",style:{flex:1},onClick:function(){
+        var url=prompt("이미지 URL 붙여넣기 (구글 이미지에서 '이미지 주소 복사')");
+        if(url)loadImgUrl(url.trim(),props.onChange);
+      }},"🔗 URL로 추가"),
+      props.photo&&h("button",{className:"btn ghost sm",onClick:function(){props.onChange("");}},"제거")));
+}
+
+function fmtClock(s){var m=Math.floor(s/60),ss=s%60;return (m<10?"0":"")+m+":"+(ss<10?"0":"")+ss;}
+function fmtMin(s){return Math.round(s/60)+"분";}
+function todayStr(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function won(n){return (n||0).toLocaleString("ko-KR")+"원";}
+
+/* coating expiry: vehicle.coating = {type, date(YYYY-MM-DD), months} */
+var COATING_TYPES=[
+  {n:"세라믹 코팅",m:12},{n:"유리막 코팅",m:9},{n:"실란트",m:4},
+  {n:"왁스",m:2},{n:"물왁스",m:1},{n:"발수코팅(유리)",m:3}
+];
+function coatingStatus(c){
+  if(!c||!c.date||!c.months) return null;
+  var start=new Date(c.date+"T00:00:00");
+  var exp=new Date(start); exp.setMonth(exp.getMonth()+c.months);
+  var now=new Date(); now.setHours(0,0,0,0);
+  var daysLeft=Math.round((exp-now)/86400000);
+  var total=c.months*30;
+  var pct=Math.max(0,Math.min(100,Math.round((daysLeft/total)*100)));
+  var state=daysLeft<0?"expired":daysLeft<=14?"soon":"ok";
+  function fmt(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+  return {daysLeft:daysLeft,expDate:fmt(exp),pct:pct,state:state};
+}
+
+/* ===== weather (Open-Meteo, no key, CORS ok) ===== */
+function wmoIcon(code){
+  if(code===0) return "☀️";
+  if(code===1||code===2) return "🌤️";
+  if(code===3) return "☁️";
+  if(code===45||code===48) return "🌫️";
+  if(code>=51&&code<=57) return "🌦️";
+  if(code>=61&&code<=67) return "🌧️";
+  if(code>=71&&code<=77) return "🌨️";
+  if(code>=80&&code<=82) return "🌦️";
+  if(code>=85&&code<=86) return "❄️";
+  if(code>=95) return "⛈️";
+  return "";
+}
+function wmoLabel(code){
+  if(code===0) return "맑음";
+  if(code===1||code===2) return "구름 조금";
+  if(code===3) return "흐림";
+  if(code===45||code===48) return "안개";
+  if(code>=51&&code<=57) return "이슬비";
+  if(code>=61&&code<=67) return "비";
+  if(code>=71&&code<=77) return "눈";
+  if(code>=80&&code<=82) return "소나기";
+  if(code>=85&&code<=86) return "눈";
+  if(code>=95) return "뇌우";
+  return "";
+}
+// returns {byDate:{date:{code,tmax,tmin,pop}}, lat, lng, fetchedAt} or null
+function kvGet(key){return new Promise(function(res){var rq=tx("kv","readonly").get(key);rq.onsuccess=function(){res(rq.result||null);};rq.onerror=function(){res(null);};});}
+function kvPut(key,val){return new Promise(function(res){var rq=tx("kv","readwrite").put({id:key,val:val});rq.onsuccess=function(){res();};rq.onerror=function(){res();};});}
+
+function getWeather(force){
+  // cache 3h
+  return kvGet("weather").then(function(cached){
+    if(!force&&cached&&cached.val&&(Date.now()-cached.val.fetchedAt<3*3600*1000)){
+      return cached.val;
+    }
+    if(!navigator.geolocation) return Promise.reject(new Error("nogeo"));
+    return new Promise(function(resolve,reject){
+      navigator.geolocation.getCurrentPosition(function(p){
+        var lat=p.coords.latitude,lng=p.coords.longitude;
+        var url="https://api.open-meteo.com/v1/forecast?latitude="+lat.toFixed(3)+"&longitude="+lng.toFixed(3)+
+          "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=16";
+        fetch(url).then(function(r){return r.json();}).then(function(j){
+          if(!j.daily||!j.daily.time){reject(new Error("nodata"));return;}
+          var byDate={};
+          j.daily.time.forEach(function(d,i){
+            byDate[d]={code:j.daily.weather_code[i],tmax:Math.round(j.daily.temperature_2m_max[i]),
+              tmin:Math.round(j.daily.temperature_2m_min[i]),pop:j.daily.precipitation_probability_max[i]};
+          });
+          var data={byDate:byDate,lat:lat,lng:lng,fetchedAt:Date.now()};
+          kvPut("weather",data).then(function(){resolve(data);});
+        }).catch(reject);
+      },function(err){reject(err);},{timeout:10000,maximumAge:600000});
+    });
+  });
+}
+
+/* ===================================================== */
+function App(){
+  var tab=useState("sessions"),T=tab[0],setT=tab[1];
+  var ready=useState(false),R=ready[0],setR=ready[1];
+  var veh=useState([]),chem=useState([]),equip=useState([]),sess=useState([]),tpl=useState([]);
+  var openId=useState(null);
+  var settings=useState(false),showSettings=settings[0],setShowSettings=settings[1];
+
+  function reload(){
+    return Promise.all([dbAll("vehicles"),dbAll("chemicals"),dbAll("equipment"),dbAll("sessions"),dbAll("templates")])
+    .then(function(a){
+      veh[1](a[0]); chem[1](a[1]); equip[1](a[2]);
+      sess[1](a[3].sort(function(x,y){return (y.date||"").localeCompare(x.date||"")||y.created-x.created;}));
+      tpl[1](a[4]);
+    });
+  }
+  useEffect(function(){
+    var init=openDB();
+    if(window.DEMO_MODE) init=init.then(seedDemo);
+    init.then(reload).then(function(){setR(true);});
+  },[]);
+
+  if(!R) return h("div",{className:"empty"},h("div",{className:"e"},"✨"),"불러오는 중…");
+
+  var ctx={veh:veh[0],chem:chem[0],equip:equip[0],sess:sess[0],tpl:tpl[0],
+    reload:reload,openId:openId[0],setOpen:openId[1],setT:setT};
+
+  if(openId[0]){
+    var s=sess[0].find(function(x){return x.id===openId[0];});
+    if(s) return h(SessionRun,{s:s,ctx:ctx});
+  }
+  return h("div",null,
+    h(Header,{T:T,onSettings:function(){setShowSettings(true);}}),
+    h("main",null,
+      T==="sessions"&&h(SessionsTab,{ctx:ctx}),
+      T==="garage"&&h(GarageTab,{ctx:ctx}),
+      T==="chem"&&h(ChemTab,{ctx:ctx}),
+      T==="gear"&&h(GearTab,{ctx:ctx}),
+      T==="stats"&&h(StatsTab,{ctx:ctx})
+    ),
+    h(BottomNav,{T:T,setT:setT}),
+    showSettings&&h(SettingsSheet,{ctx:ctx,close:function(){setShowSettings(false);}})
+  );
+}
+function Header(props){
+  var t={sessions:"세차 기록",garage:"내 차고",chem:"케미컬",gear:"장비",stats:"통계"};
+  return h("header",null,
+    h("h1",null,t[props.T]||"Detailing Log"," ",h("span",{className:"dot"},"·")),
+    h("button",{className:"hbtn",onClick:props.onSettings,title:"설정·백업"},"⚙"));
+}
+function BottomNav(props){
+  var items=[["sessions","🧽","기록"],["garage","🚗","차고"],["chem","🧴","케미컬"],["gear","🛠","장비"],["stats","📊","통계"]];
+  return h("nav",null,items.map(function(it){
+    return h("button",{key:it[0],className:props.T===it[0]?"on":"",onClick:function(){props.setT(it[0]);}},
+      h("span",{className:"ic"},it[1]),h("span",null,it[2]));
+  }));
+}
+
+/* ---------------- SESSIONS LIST ---------------- */
+function sessionCard(s,ctx){
+  var done=s.steps.filter(function(x){return x.done;}).length;
+  var v=ctx.veh.find(function(x){return x.id===s.vehicleId;});
+  var totAct=s.steps.reduce(function(a,b){return a+(b.actualSec||0);},0);
+  return h("div",{key:s.id,className:"card tap",onClick:function(){ctx.setOpen(s.id);}},
+    h("div",{className:"row between"},
+      h("div",{className:"grow"},
+        h("div",{style:{fontWeight:700,fontSize:16}},s.title||"세차 세션"),
+        h("div",{className:"muted ellip"},(v?v.name:"차량 미지정")+" · "+s.date)),
+      s.status==="done"?h("span",{className:"badge",style:{color:"var(--good)"}},"완료")
+        :s.status==="running"?h("span",{className:"badge",style:{color:"var(--accent)"}},"진행 중")
+        :h("span",{className:"badge"},done+"/"+s.steps.length)),
+    (totAct>0||s.cost)&&h("div",{className:"row",style:{marginTop:10,gap:16}},
+      totAct>0&&h("span",{className:"tiny"},"⏱ "+fmtMin(totAct)),
+      s.cost>0&&h("span",{className:"tiny"},"💸 "+won(s.cost)),
+      s.location&&h("span",{className:"tiny ellip"},"📍 "+s.location)),
+    s.resultPhotos&&s.resultPhotos.length>0&&h("div",{className:"photogrid",style:{marginTop:10}},
+      s.resultPhotos.slice(0,3).map(function(p,i){return h("img",{key:i,src:p});})));
+}
+function SessionsTab(props){
+  var ctx=props.ctx,newOpen=useState(false),view=useState("list");
+  if(ctx.sess.length===0&&!newOpen[0]){
+    return h("div",null,
+      h("div",{className:"empty"},h("div",{className:"e"},"🧽"),
+        h("div",null,"아직 세차 기록이 없어요"),
+        h("div",{className:"tiny",style:{marginTop:6}},"+ 버튼으로 첫 세션을 계획해보세요")),
+      h("button",{className:"fab",onClick:function(){newOpen[1](true);}},"+"),
+      newOpen[0]&&h(NewSession,{ctx:ctx,close:function(){newOpen[1](false);}}));
+  }
+  return h("div",null,
+    h("div",{className:"seg",style:{marginBottom:14}},
+      h("button",{className:view[0]==="list"?"on":"",onClick:function(){view[1]("list");}},"목록"),
+      h("button",{className:view[0]==="cal"?"on":"",onClick:function(){view[1]("cal");}},"캘린더")),
+    view[0]==="list"
+      ? ctx.sess.map(function(s){return sessionCard(s,ctx);})
+      : h(CalendarView,{ctx:ctx}),
+    h("button",{className:"fab",onClick:function(){newOpen[1](true);}},"+"),
+    newOpen[0]&&h(NewSession,{ctx:ctx,close:function(){newOpen[1](false);}}));
+}
+
+/* ---------------- CALENDAR ---------------- */
+function CalendarView(props){
+  var ctx=props.ctx;
+  var d0=new Date();
+  var ym=useState({y:d0.getFullYear(),m:d0.getMonth()}); var Y=ym[0].y,M=ym[0].m;
+  var selected=useState(todayStr());
+  var wx=useState(null), wxState=useState("idle"); // idle|loading|ok|denied|error
+
+  useEffect(function(){
+    // try cached/fresh weather on mount
+    wxState[1]("loading");
+    getWeather(false).then(function(d){wx[1](d);wxState[1]("ok");})
+      .catch(function(err){
+        wxState[1](err&&err.code===1?"denied":(err&&err.message==="nogeo"?"denied":"error"));
+      });
+  },[]);
+  function refreshWx(){
+    wxState[1]("loading");
+    getWeather(true).then(function(d){wx[1](d);wxState[1]("ok");})
+      .catch(function(err){wxState[1](err&&err.code===1?"denied":"error");});
+  }
+
+  var byDate={};
+  ctx.sess.forEach(function(s){ if(!byDate[s.date])byDate[s.date]=[]; byDate[s.date].push(s); });
+  var wxByDate=(wx[0]&&wx[0].byDate)||{};
+
+  var first=new Date(Y,M,1), startDow=first.getDay();
+  var daysInMonth=new Date(Y,M+1,0).getDate();
+  var cells=[];
+  for(var i=0;i<startDow;i++) cells.push(null);
+  for(var d=1;d<=daysInMonth;d++) cells.push(d);
+  function ds(day){return Y+"-"+String(M+1).padStart(2,"0")+"-"+String(day).padStart(2,"0");}
+  function prevM(){ var nm=M-1,ny=Y; if(nm<0){nm=11;ny--;} ym[1]({y:ny,m:nm}); }
+  function nextM(){ var nm=M+1,ny=Y; if(nm>11){nm=0;ny++;} ym[1]({y:ny,m:nm}); }
+
+  var dows=["일","월","화","수","목","금","토"];
+  var selSessions=byDate[selected[0]]||[];
+  var selWx=wxByDate[selected[0]];
+
+  return h("div",null,
+    h("div",{className:"card",style:{padding:14}},
+      h("div",{className:"row between",style:{marginBottom:12}},
+        h("button",{className:"hbtn",onClick:prevM},"‹"),
+        h("div",{style:{fontWeight:800,fontSize:16}},Y+"년 "+(M+1)+"월"),
+        h("button",{className:"hbtn",onClick:nextM},"›")),
+      h("div",{className:"calgrid"},
+        dows.map(function(w,i){return h("div",{key:"w"+i,className:"caldow"+(i===0?" sun":i===6?" sat":"")},w);}),
+        cells.map(function(day,i){
+          if(!day) return h("div",{key:"e"+i});
+          var dstr=ds(day), list=byDate[dstr]||[], isToday=dstr===todayStr(), isSel=dstr===selected[0];
+          var dow=(startDow+day-1)%7, w=wxByDate[dstr];
+          return h("div",{key:"d"+i,className:"calcell"+(isSel?" sel":"")+(isToday?" today":""),
+            onClick:function(){selected[1](dstr);}},
+            h("div",{className:"caldate"+(dow===0?" sun":dow===6?" sat":"")},day),
+            w&&h("div",{className:"calwx"},
+              h("span",{className:"calwxic"},wmoIcon(w.code)),
+              w.pop>=40&&h("span",{className:"calpop"},w.pop+"%")),
+            list.length>0&&h("div",{className:"caldots"},
+              list.slice(0,3).map(function(s,j){
+                var col=s.status==="done"?"var(--good)":s.status==="running"?"var(--accent)":"var(--c2)";
+                return h("span",{key:j,className:"caldot",style:{background:col}});
+              })));
+        }))),
+
+    // weather status line
+    wxState[0]==="loading"&&h("div",{className:"tiny",style:{textAlign:"center",marginBottom:8}},"날씨 불러오는 중…"),
+    wxState[0]==="denied"&&h("div",{className:"tiny",style:{textAlign:"center",marginBottom:8}},
+      "위치 권한을 허용하면 날씨가 표시돼요 · ",h("span",{style:{color:"var(--accent)",fontWeight:700},onClick:refreshWx},"다시 시도")),
+    wxState[0]==="error"&&h("div",{className:"tiny",style:{textAlign:"center",marginBottom:8}},
+      "날씨를 불러오지 못했어요 (오프라인?) · ",h("span",{style:{color:"var(--accent)",fontWeight:700},onClick:refreshWx},"다시 시도")),
+
+    // selected day detail
+    h("div",{className:"sectit",style:{marginTop:6}},selected[0]+(selSessions.length?(" · "+selSessions.length+"건"):"")),
+    selWx&&h("div",{className:"card",style:{padding:13,background:"var(--surface2)"}},
+      h("div",{className:"row between"},
+        h("div",{className:"row",style:{gap:10}},
+          h("span",{style:{fontSize:30}},wmoIcon(selWx.code)),
+          h("div",null,
+            h("div",{style:{fontWeight:700}},wmoLabel(selWx.code)),
+            h("div",{className:"tiny"},"최고 "+selWx.tmax+"° · 최저 "+selWx.tmin+"°"))),
+        h("div",{style:{textAlign:"right"}},
+          h("div",{style:{fontWeight:800,fontSize:18,color:selWx.pop>=60?"var(--bad)":selWx.pop>=40?"var(--warn)":"var(--accent)"}},"💧 "+selWx.pop+"%"),
+          h("div",{className:"tiny"},"강수확률"))),
+      selWx.pop>=50&&h("div",{className:"tiny",style:{marginTop:8,color:"var(--warn)"}},"☔ 비 가능성 높음 — 코팅·발수 작업은 피하는 게 좋아요")),
+    selSessions.length===0
+      ? h("div",{className:"tiny",style:{padding:"8px 2px 20px"}},"이 날짜에 기록이 없어요")
+      : selSessions.map(function(s){return sessionCard(s,ctx);}));
+}
+
+function NewSession(props){
+  var ctx=props.ctx;
+  var title=useState(""),date=useState(todayStr()),vid=useState(ctx.veh[0]?ctx.veh[0].id:""),fromTpl=useState("");
+  var wxMap=useState(null);
+  useEffect(function(){ kvGet("weather").then(function(c){ if(c&&c.val&&c.val.byDate) wxMap[1](c.val.byDate); }); },[]);
+  var dayWx=wxMap[0]&&wxMap[0][date[0]];
+  function create(){
+    var steps=[];
+    if(fromTpl[0]){
+      var t=ctx.tpl.find(function(x){return x.id===fromTpl[0];});
+      if(t) steps=t.steps.map(function(st){return Object.assign({},st,{id:uid(),done:false,actualSec:0,_startedAt:null,usedMl:st.usedMl||0});});
+    }
+    var s={id:uid(),created:Date.now(),title:title[0]||"세차 세션",date:date[0],vehicleId:vid[0],
+      steps:steps,status:"plan",runningStepId:null,cost:0,location:"",geo:null,
+      beforePhotos:[],resultPhotos:[],review:{good:"",improve:""}};
+    dbPut("sessions",s).then(ctx.reload).then(function(){props.close();ctx.setOpen(s.id);});
+  }
+  return h(Sheet,{close:props.close,title:"새 세차 세션",children:[
+    h("label",{className:"fl",key:1},"세션 이름"),
+    h("div",{key:"tp",className:"chips",style:{marginBottom:9}},SESSION_PRESETS.map(function(p){
+      return h("span",{key:p,className:"chip"+(title[0]===p?" on":""),onClick:function(){title[1](p);}},p);})),
+    h("input",{key:2,className:"inp",placeholder:"직접 입력도 가능",value:title[0],onChange:function(e){title[1](e.target.value);}}),
+    h("label",{className:"fl",key:3},"날짜"),
+    h("input",{key:4,className:"inp",type:"date",value:date[0],onChange:function(e){date[1](e.target.value);}}),
+    dayWx&&h("div",{key:"wx",className:"card",style:{padding:11,marginTop:8,background:"var(--surface2)"}},
+      h("div",{className:"row between"},
+        h("div",{className:"row",style:{gap:8}},
+          h("span",{style:{fontSize:22}},wmoIcon(dayWx.code)),
+          h("div",null,h("div",{style:{fontWeight:700,fontSize:14}},wmoLabel(dayWx.code)),
+            h("div",{className:"tiny"},"최고 "+dayWx.tmax+"° · 최저 "+dayWx.tmin+"°"))),
+        h("div",{style:{fontWeight:800,color:dayWx.pop>=60?"var(--bad)":dayWx.pop>=40?"var(--warn)":"var(--accent)"}},"💧 "+dayWx.pop+"%")),
+      dayWx.pop>=50&&h("div",{className:"tiny",style:{marginTop:7,color:"var(--warn)"}},"☔ 이날 비 예보 — 코팅·발수는 맑은 날로 미루는 걸 추천해요")),
+    h("label",{className:"fl",key:5},"차량"),
+    ctx.veh.length===0?h("div",{key:6,className:"tiny",style:{padding:"4px 2px"}},"차고에 차량을 먼저 등록하세요 (없어도 진행 가능)")
+      :h("select",{key:6,className:"inp",value:vid[0],onChange:function(e){vid[1](e.target.value);}},
+        ctx.veh.map(function(v){return h("option",{key:v.id,value:v.id},v.name);})),
+    ctx.tpl.length>0&&h("label",{className:"fl",key:7},"템플릿에서 불러오기 (선택)"),
+    ctx.tpl.length>0&&h("select",{key:8,className:"inp",value:fromTpl[0],onChange:function(e){fromTpl[1](e.target.value);}},
+      h("option",{value:""},"빈 세션으로 시작"),
+      ctx.tpl.map(function(t){return h("option",{key:t.id,value:t.id},t.name+" ("+t.steps.length+"단계)");})),
+    h("div",{key:9,style:{height:18}}),
+    h("button",{key:10,className:"btn",onClick:create},"세션 만들기")
+  ]});
+}
+
+/* ---------------- SESSION RUN ---------------- */
+function SessionRun(props){
+  var s=props.s,ctx=props.ctx;
+  var tick=useState(0),setTick=tick[1];
+  var editStep=useState(null);
+  var pickPreset=useState(false);
+  var showReport=useState(false);
+
+  useEffect(function(){
+    var iv=setInterval(function(){
+      if(s.runningStepId){
+        setTick(Date.now());
+        // auto-advance: if all-in-one mode and current step exceeded its estimate, complete & move on
+        if(s.autoMode){
+          var cur=s.steps.find(function(x){return x.id===s.runningStepId;});
+          if(cur&&cur.estMin>0&&cur._startedAt){
+            var elapsed=(cur.actualSec||0)+Math.round((Date.now()-cur._startedAt)/1000);
+            if(elapsed>=cur.estMin*60){ advanceAuto(); }
+          }
+        }
+      }
+    },1000);
+    function vis(){if(!document.hidden)setTick(Date.now());}
+    document.addEventListener("visibilitychange",vis);
+    return function(){clearInterval(iv);document.removeEventListener("visibilitychange",vis);};
+  },[s.runningStepId,s.autoMode]);
+
+  function save(ns){return dbPut("sessions",ns).then(ctx.reload);}
+  function patch(o){save(Object.assign({},s,o));}
+
+  // commit current running step's elapsed time into actualSec, return updated steps
+  function commitRunning(steps){
+    return steps.map(function(x){
+      if(x.id===s.runningStepId&&x._startedAt){x.actualSec=(x.actualSec||0)+Math.round((Date.now()-x._startedAt)/1000);x._startedAt=null;}
+      return x;});
+  }
+  function firstPendingId(steps,afterId){
+    var started=!afterId;
+    for(var i=0;i<steps.length;i++){
+      if(afterId&&steps[i].id===afterId){started=true;continue;}
+      if(started&&!steps[i].done) return steps[i].id;
+    }
+    return null;
+  }
+  // auto mode: complete current, start next pending; if none, finish
+  function advanceAuto(){
+    var steps=commitRunning(s.steps.slice());
+    steps=steps.map(function(x){if(x.id===s.runningStepId)x.done=true;return x;});
+    var nextId=firstPendingId(steps,s.runningStepId);
+    if(nextId){
+      steps=steps.map(function(x){if(x.id===nextId)x._startedAt=Date.now();return x;});
+      save(Object.assign({},s,{steps:steps,runningStepId:nextId,status:"running"}));
+    }else{
+      save(Object.assign({},s,{steps:steps,runningStepId:null,autoMode:false}));
+    }
+  }
+  // start all-in-one from first pending
+  function startAuto(){
+    var steps=commitRunning(s.steps.slice());
+    var firstId=firstPendingId(steps,null);
+    if(!firstId){alert("진행할 스텝이 없어요");return;}
+    steps=steps.map(function(x){if(x.id===firstId)x._startedAt=Date.now();return x;});
+    save(Object.assign({},s,{steps:steps,runningStepId:firstId,status:"running",autoMode:true}));
+  }
+  function pauseAuto(){
+    var steps=commitRunning(s.steps.slice());
+    save(Object.assign({},s,{steps:steps,runningStepId:null,autoMode:false}));
+  }
+
+  function startStep(st){
+    var steps=s.steps.map(function(x){
+      if(x.id===s.runningStepId&&x._startedAt){x.actualSec=(x.actualSec||0)+Math.round((Date.now()-x._startedAt)/1000);x._startedAt=null;}
+      return x;});
+    var ns=steps.map(function(x){if(x.id===st.id)x._startedAt=Date.now();return x;});
+    save(Object.assign({},s,{steps:ns,runningStepId:st.id,status:"running"}));
+  }
+  function stopStep(){
+    var steps=s.steps.map(function(x){
+      if(x.id===s.runningStepId&&x._startedAt){x.actualSec=(x.actualSec||0)+Math.round((Date.now()-x._startedAt)/1000);x._startedAt=null;}
+      return x;});
+    save(Object.assign({},s,{steps:steps,runningStepId:null}));
+  }
+  function toggleDone(st){
+    if(s.runningStepId===st.id)stopStep();
+    var steps=s.steps.map(function(x){if(x.id===st.id)x.done=!x.done;return x;});
+    save(Object.assign({},s,{steps:steps}));
+  }
+  function liveSecs(st){var b=st.actualSec||0;if(st._startedAt)b+=Math.round((Date.now()-st._startedAt)/1000);return b;}
+  function addStep(st){save(Object.assign({},s,{steps:s.steps.concat([st])}));}
+  function updStep(st){save(Object.assign({},s,{steps:s.steps.map(function(x){return x.id===st.id?st:x;})}));}
+  function delStep(id){save(Object.assign({},s,{steps:s.steps.filter(function(x){return x.id!==id;})}));}
+  function delSession(){if(confirm("이 세션을 삭제할까요?"))dbDel("sessions",s.id).then(ctx.reload).then(function(){ctx.setOpen(null);});}
+
+  function saveAsTemplate(){
+    var name=prompt("템플릿 이름",s.title);if(!name)return;
+    var t={id:uid(),name:name,steps:s.steps.map(function(x){
+      return {id:uid(),name:x.name,cat:x.cat||"",chemIds:x.chemIds||[],equipIds:x.equipIds||[],
+        dilution:x.dilution||"",estMin:x.estMin||0,panel:x.panel||"",tags:x.tags||[],usedMl:x.usedMl||0};
+    })};
+    dbPut("templates",t).then(ctx.reload).then(function(){alert("템플릿으로 저장됐어요");});
+  }
+
+  function completeSession(){
+    if(s.runningStepId)stopStep();
+    // deduct chemical volumes
+    var deltas={};
+    s.steps.forEach(function(st){
+      (st.chemIds||[]).forEach(function(cid){
+        if(st.usedMl>0){ deltas[cid]=(deltas[cid]||0)+st.usedMl/((st.chemIds||[]).length||1); }
+      });
+    });
+    var ops=Object.keys(deltas).map(function(cid){
+      var c=ctx.chem.find(function(x){return x.id===cid;});
+      if(!c)return Promise.resolve();
+      var rem=Math.max(0,(c.remainMl!=null?c.remainMl:c.volMl||0)-deltas[cid]);
+      return dbPut("chemicals",Object.assign({},c,{remainMl:rem}));
+    });
+    // increment equipment usage counts (each unique equipment used in this session = +1)
+    if(!s._equipCounted){
+      var equipSet={};
+      s.steps.forEach(function(st){(st.equipIds||[]).forEach(function(eid){equipSet[eid]=true;});});
+      Object.keys(equipSet).forEach(function(eid){
+        var eq=ctx.equip.find(function(x){return x.id===eid;});
+        if(eq) ops.push(dbPut("equipment",Object.assign({},eq,{uses:(eq.uses||0)+1})));
+      });
+    }
+    Promise.all(ops).then(function(){ patch({status:"done",_deducted:true,_equipCounted:true}); ctx.reload(); });
+  }
+
+  function addStepPhoto(stId,file){
+    resizeImg(file,function(d){
+      var ns=s.steps.map(function(x){if(x.id===stId){x.photos=(x.photos||[]).concat([d]);}return x;});
+      save(Object.assign({},s,{steps:ns}));
+    });
+  }
+  function rmStepPhoto(stId,idx){
+    var ns=s.steps.map(function(x){if(x.id===stId){x.photos=(x.photos||[]).slice();x.photos.splice(idx,1);}return x;});
+    save(Object.assign({},s,{steps:ns}));
+  }
+
+  var totalEst=s.steps.reduce(function(a,b){return a+(b.estMin||0)*60;},0);
+  var totalAct=s.steps.reduce(function(a,b){return a+liveSecs(b);},0);
+  var doneCt=s.steps.filter(function(x){return x.done;}).length;
+
+  if(showReport[0]) return h(Report,{s:s,ctx:ctx,close:function(){showReport[1](false);}});
+
+  return h("div",null,
+    h("header",null,
+      h("button",{className:"hbtn",onClick:function(){if(s.runningStepId)pauseAuto();ctx.setOpen(null);}},"‹"),
+      h("h1",{className:"ellip"},s.title),
+      h("button",{className:"hbtn",onClick:saveAsTemplate,title:"템플릿 저장"},"📋")),
+    h("main",null,
+      h("div",{className:"row",style:{gap:8,marginBottom:12}},
+        h("div",{className:"statbox"},h("div",{className:"n"},doneCt+"/"+s.steps.length),h("div",{className:"l"},"단계")),
+        h("div",{className:"statbox"},h("div",{className:"n timer"},fmtClock(totalAct)),h("div",{className:"l"},"실제")),
+        h("div",{className:"statbox"},h("div",{className:"n",style:{color:"var(--txt2)"}},Math.round(totalEst/60)+"분"),h("div",{className:"l"},"예상"))),
+
+      // all-in-one control bar
+      s.steps.length>0&&s.status!=="done"&&h("div",{className:"card",style:{padding:13,marginBottom:14,background:s.autoMode?"linear-gradient(120deg,rgba(34,211,238,.1),rgba(124,92,255,.1))":"var(--surface)"}},
+        h("div",{className:"row between"},
+          h("div",{className:"grow"},
+            h("div",{style:{fontWeight:800,fontSize:14}},s.autoMode?"🔄 올인원 자동 진행 중":"⚡ 올인원 모드"),
+            h("div",{className:"tiny",style:{marginTop:2}},s.autoMode?"예상시간이 차면 자동으로 다음 스텝":"전체 타이머가 스텝을 순서대로 자동 진행")),
+          s.autoMode
+            ? h("div",{className:"row",style:{gap:8}},
+                h("button",{className:"btn sm",onClick:advanceAuto},"다음 ⏭"),
+                h("button",{className:"btn ghost sm",onClick:pauseAuto},"일시정지"))
+            : h("button",{className:"btn sm",onClick:startAuto},"▶ 시작")),
+        s.autoMode&&(function(){
+          var cur=s.steps.find(function(x){return x.id===s.runningStepId;});
+          if(!cur||!cur.estMin)return null;
+          var el=liveSecs(cur),tot=cur.estMin*60,pct=Math.min(100,Math.round(el/tot*100));
+          return h("div",null,
+            h("div",{className:"row between",style:{marginTop:10,marginBottom:4}},
+              h("span",{className:"tiny"},"현재: "+cur.name),
+              h("span",{className:"tiny timer"},fmtClock(el)+" / "+Math.round(tot/60)+"분")),
+            h("div",{className:"gauge"},h("div",{style:{width:pct+"%"}})));
+        })()),
+
+      s.steps.length===0&&h("div",{className:"empty"},h("div",{className:"e"},"➕"),"스텝을 추가해 플랜을 짜보세요"),
+      s.steps.map(function(st,i){
+        return h(StepCard,{key:st.id,st:st,i:i,ctx:ctx,
+          live:liveSecs(st),running:s.runningStepId===st.id,
+          onEdit:function(){editStep[1](st);},onToggle:function(){toggleDone(st);},
+          onStart:function(){startStep(st);},onStop:stopStep,
+          onAddPhoto:function(f){addStepPhoto(st.id,f);},onRmPhoto:function(idx){rmStepPhoto(st.id,idx);}});
+      }),
+
+      h("button",{className:"btn ghost",style:{marginTop:6},onClick:function(){pickPreset[1](true);}},"＋ 스텝 추가"),
+
+      h("div",{className:"divider"}),
+      h(SessionMeta,{s:s,patch:patch}),
+      h("div",{className:"divider"}),
+      h(ReviewBlock,{s:s,patch:patch}),
+
+      h("div",{style:{height:14}}),
+      s.status==="done"&&h("button",{className:"btn",style:{marginBottom:10,background:"var(--gold)",color:"#1a1300"},onClick:function(){showReport[1](true);}},"📄 세차 리포트 보기"),
+      s.status!=="done"
+        ? h("button",{className:"btn",onClick:completeSession},"✓ 세차 완료 (케미컬 차감)")
+        : h("button",{className:"btn ghost",onClick:function(){patch({status:"plan"});}},"완료 취소"),
+      h("button",{className:"btn ghost danger",style:{marginTop:10},onClick:delSession},"세션 삭제"),
+      h("div",{style:{height:30}})),
+    editStep[0]&&h(StepEditor,{ctx:ctx,step:editStep[0],
+      close:function(){editStep[1](null);},
+      onSave:function(st){if(st._new){delete st._new;addStep(st);}else updStep(st);editStep[1](null);},
+      onDelete:function(id){delStep(id);editStep[1](null);}}),
+    pickPreset[0]&&h(PresetPicker,{ctx:ctx,
+      close:function(){pickPreset[1](false);},
+      onCustom:function(){pickPreset[1](false);
+        editStep[1]({_new:true,id:uid(),name:"",cat:"",chemIds:[],equipIds:[],dilution:"",tools:"",estMin:0,panel:"",tags:[],usedMl:0,done:false,actualSec:0,_startedAt:null});},
+      onPick:function(p){pickPreset[1](false);
+        // try to auto-match a chemical of same category, and equipment of hinted type
+        var chem=ctx.chem.find(function(c){return c.cat===p.cat;});
+        var eq=p.eq?ctx.equip.find(function(e){return e.type===p.eq;}):null;
+        editStep[1]({_new:true,id:uid(),name:p.n,cat:p.cat,chemIds:chem?[chem.id]:[],
+          equipIds:eq?[eq.id]:[],dilution:"",tools:"",estMin:p.est||0,panel:"",tags:(p.tags||[]).slice(),
+          usedMl:chem&&chem.defaultMl?chem.defaultMl:0,done:false,actualSec:0,_startedAt:null});}}));
+}
+
+/* ---------------- STEP CARD ---------------- */
+function StepCard(props){
+  var st=props.st,ctx=props.ctx,i=props.i,running=props.running,live=props.live;
+  var est=(st.estMin||0)*60;
+  var photoRef=useRef(null);
+  // chemical objects (for name + product photo thumbnails)
+  var chems=(st.chemIds||[]).map(function(cid){return ctx.chem.find(function(x){return x.id===cid;});}).filter(Boolean);
+  var equipNames=(st.equipIds||[]).map(function(eid){var e=ctx.equip.find(function(x){return x.id===eid;});return e?e.name:null;}).filter(Boolean);
+  return h("div",{className:"step"+(st.done?" done":"")+(running?" active":"")},
+    h("div",{className:"row",style:{gap:10}},
+      h("div",{className:"check"+(st.done?" on":""),onClick:props.onToggle},st.done?"✓":""),
+      h("div",{className:"grow",onClick:props.onEdit},
+        h("div",{style:{fontWeight:700}},h("span",{className:"stepnum",style:{marginRight:8}},i+1),st.name,
+          st.cat&&h("span",{className:"chip sm",style:{marginLeft:8,verticalAlign:"middle"}},catName(st.cat))),
+        chems.length>0&&h("div",{className:"muted",style:{marginTop:4}},"🧴 "+chems.map(function(c){return c.name;}).join(", ")+(st.dilution?(" · "+st.dilution):"")+(st.usedMl>0?(" · "+st.usedMl+"ml"):"")),
+        equipNames.length>0&&h("div",{className:"tiny",style:{marginTop:2}},"🛠 "+equipNames.join(", ")),
+        (st.tools||st.panel)&&h("div",{className:"tiny",style:{marginTop:2}},[st.panel,st.tools].filter(Boolean).join(" · ")),
+        (st.tags&&st.tags.length>0)&&h("div",{className:"chips",style:{marginTop:6}},st.tags.map(function(tg){return h("span",{key:tg,className:"chip tag sm"},tg);}))),
+      h("div",{style:{textAlign:"right",flex:"none"}},
+        h("div",{className:"timer"},fmtClock(live)),
+        est>0&&h("div",{className:"tiny"},"/ "+Math.round(est/60)+"분"))),
+
+    // product photo thumbnails (mania satisfaction)
+    chems.some(function(c){return c.photo;})&&h("div",{className:"row",style:{gap:6,marginTop:8,flexWrap:"wrap"}},
+      chems.filter(function(c){return c.photo;}).map(function(c){
+        return h("img",{key:c.id,src:c.photo,title:c.name,style:{width:38,height:38,borderRadius:8,objectFit:"cover",border:"1px solid var(--line)"}});
+      })),
+
+    // process photos (during step)
+    (st.photos&&st.photos.length>0)&&h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginTop:8}},
+      st.photos.map(function(p,idx){
+        return h("div",{key:idx,style:{position:"relative"}},
+          h("img",{src:p,style:{width:"100%",aspectRatio:"1",objectFit:"cover",borderRadius:8}}),
+          h("button",{style:{position:"absolute",top:2,right:2,background:"rgba(0,0,0,.6)",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12},
+            onClick:function(){props.onRmPhoto(idx);}},"×"));
+      })),
+
+    h("div",{className:"row",style:{gap:8,marginTop:10}},
+      !st.done&&(running
+        ?h("button",{className:"btn sm",style:{flex:1,background:"var(--bad)",color:"#fff"},onClick:props.onStop},"⏸ 정지")
+        :h("button",{className:"btn sm",style:{flex:1},onClick:props.onStart},"▶ 시작")),
+      h("button",{className:"btn ghost sm",style:st.done?{flex:1}:{},onClick:function(){photoRef.current.click();}},"📷 과정 사진"),
+      h("button",{className:"btn ghost sm",onClick:props.onEdit},"✎")),
+    h("input",{ref:photoRef,type:"file",accept:"image/*",className:"hidden",onChange:function(e){if(e.target.files[0])props.onAddPhoto(e.target.files[0]);e.target.value="";}}));
+}
+
+function SessionMeta(props){
+  var s=props.s,patch=props.patch;
+  var beforeRef=useRef(null),afterRef=useRef(null);
+  function addPhotos(e,key){
+    var files=Array.prototype.slice.call(e.target.files);
+    var acc=(s[key]||[]).slice(),n=files.length;
+    files.forEach(function(f){resizeImg(f,function(d){acc.push(d);n--;if(n===0){var o={};o[key]=acc;patch(o);}});});
+  }
+  function rm(key,i){var a=(s[key]||[]).slice();a.splice(i,1);var o={};o[key]=a;patch(o);}
+  function photoBlock(key,ref,label){
+    return [h("label",{className:"fl",key:key+"l"},label),
+      h("div",{className:"photogrid",key:key+"g"},
+        (s[key]||[]).map(function(p,i){
+          return h("div",{key:i,style:{position:"relative"}},h("img",{src:p}),
+            h("button",{style:{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.6)",borderRadius:"50%",width:24,height:24,color:"#fff",fontSize:14},
+              onClick:function(){rm(key,i);}},"×"));}),
+        h("div",{className:"thumb",style:{aspectRatio:"1",width:"100%",height:"auto",cursor:"pointer"},onClick:function(){ref.current.click();}},"＋")),
+      h("input",{key:key+"i",ref:ref,type:"file",accept:"image/*",multiple:true,className:"hidden",onChange:function(e){addPhotos(e,key);}})];
+  }
+  return h("div",null,
+    h("div",{className:"sectit"},"기록"),
+    photoBlock("beforePhotos",beforeRef,"세차 전 사진"),
+    photoBlock("resultPhotos",afterRef,"세차 후 사진"),
+    h("label",{className:"fl"},"비용 (원)"),
+    h("input",{className:"inp",type:"number",inputMode:"numeric",value:s.cost||"",onChange:function(e){patch({cost:parseInt(e.target.value)||0});}}),
+    h("label",{className:"fl"},"위치"),
+    h("div",{className:"row",style:{gap:8}},
+      h("input",{className:"inp",placeholder:"예: 집 주차장, OO셀프세차장",value:s.location||"",onChange:function(e){patch({location:e.target.value});}}),
+      h("button",{className:"btn ghost sm",onClick:function(){
+        if(!navigator.geolocation){alert("위치 사용 불가");return;}
+        navigator.geolocation.getCurrentPosition(function(p){patch({geo:{lat:p.coords.latitude,lng:p.coords.longitude}});alert("좌표 저장됨");},
+          function(){alert("위치 권한이 필요해요");});
+      }},"📍")),
+    s.geo&&h("div",{className:"tiny",style:{marginTop:6}},"좌표: "+s.geo.lat.toFixed(5)+", "+s.geo.lng.toFixed(5)));
+}
+
+function ReviewBlock(props){
+  var s=props.s,patch=props.patch;
+  var rows=s.steps.filter(function(x){return (x.estMin||0)>0&&(x.actualSec||0)>0;}).map(function(x){return {name:x.name,delta:(x.actualSec||0)-(x.estMin||0)*60};});
+  return h("div",null,
+    h("div",{className:"sectit"},"복기"),
+    rows.length>0&&h("div",{className:"card",style:{background:"var(--surface2)"}},
+      h("div",{className:"tiny",style:{marginBottom:8}},"예상 대비 실제 (＋느림 / －빠름)"),
+      rows.map(function(r,i){var mn=Math.round(r.delta/60);
+        return h("div",{key:i,className:"row between",style:{padding:"3px 0"}},
+          h("span",{className:"ellip muted"},r.name),
+          h("span",{className:mn>0?"deltaneg":"deltapos",style:{fontWeight:700,fontVariantNumeric:"tabular-nums"}},(mn>0?"+":"")+mn+"분"));})),
+    h("label",{className:"fl"},"잘된 점"),
+    h("textarea",{className:"inp",placeholder:"이번에 효과 좋았던 케미컬·순서·방법",value:s.review.good||"",onChange:function(e){patch({review:Object.assign({},s.review,{good:e.target.value})});}}),
+    h("label",{className:"fl"},"다음에 개선할 점"),
+    h("textarea",{className:"inp",placeholder:"순서 조정, 시간 단축 아이디어, 바꿀 케미컬",value:s.review.improve||"",onChange:function(e){patch({review:Object.assign({},s.review,{improve:e.target.value})});}}));
+}
+
+/* ---------------- PRESET PICKER ---------------- */
+function PresetPicker(props){
+  var ctx=props.ctx, q=useState(""), fcat=useState("");
+  var list=STEP_PRESETS.filter(function(p){
+    if(fcat[0]&&p.cat!==fcat[0])return false;
+    if(q[0]&&p.n.indexOf(q[0])<0)return false;
+    return true;
+  });
+  var usedCats=CATS.filter(function(c){return STEP_PRESETS.some(function(p){return p.cat===c.k;});});
+  return h(Sheet,{close:props.close,title:"스텝 추가",children:[
+    h("div",{key:"hint",className:"tiny",style:{marginBottom:10}},"일반적인 디테일링 순서로 정렬돼 있어요. 순서·구성은 자유롭게 골라 추가하세요."),
+    h("div",{key:"q",className:"row",style:{gap:8,marginBottom:10}},
+      h("input",{className:"inp",placeholder:"스텝 검색…",value:q[0],onChange:function(e){q[1](e.target.value);}})),
+    h("div",{key:"f",className:"chips",style:{marginBottom:12}},
+      h("span",{className:"chip"+(fcat[0]===""?" on":""),onClick:function(){fcat[1]("");}},"전체"),
+      usedCats.map(function(c){return h("span",{key:c.k,className:"chip"+(fcat[0]===c.k?" on":""),onClick:function(){fcat[1](c.k);}},c.n);})),
+    h("div",{key:"l"},list.map(function(p,i){
+      var hasChem=ctx.chem.some(function(c){return c.cat===p.cat;});
+      return h("div",{key:i,className:"card tap",style:{padding:13,marginBottom:8},onClick:function(){props.onPick(p);}},
+        h("div",{className:"row between"},
+          h("div",{className:"grow"},
+            h("div",{style:{fontWeight:700}},p.n,h("span",{className:"chip sm",style:{marginLeft:8}},catName(p.cat)))),
+          h("div",{style:{textAlign:"right",flex:"none"}},
+            h("div",{className:"muted",style:{fontWeight:700}},p.est+"분"),
+            hasChem&&h("div",{className:"tiny",style:{color:"var(--good)"}},"🧴 보유"))));
+    })),
+    list.length===0&&h("div",{key:"e",className:"tiny",style:{textAlign:"center",padding:20}},"검색 결과 없음"),
+    h("div",{key:"sp",style:{height:10}}),
+    h("button",{key:"c",className:"btn ghost",onClick:props.onCustom},"✎ 직접 입력으로 추가")
+  ]});
+}
+
+/* ---------------- STEP EDITOR ---------------- */
+var PANELS=["전체","외장","휠/타이어","유리","실내","엔진룸","트림/플라스틱","하부"];
+var COMMON_TAGS=["프리워시","폼","본세척","철분제거","벌레/타르","건조","점토","광택","코팅/실란트","왁스","발수","실내클리닝","가죽","디테일"];
+function StepEditor(props){
+  var ctx=props.ctx,st0=props.step;
+  var name=useState(st0.name),cat=useState(st0.cat||""),chemIds=useState(st0.chemIds||[]),equipIds=useState(st0.equipIds||[]);
+  var dil=useState(st0.dilution||""),tools=useState(st0.tools||""),est=useState(st0.estMin||0),panel=useState(st0.panel||"");
+  var tags=useState(st0.tags||[]),usedMl=useState(st0.usedMl||0),showAllChem=useState(false);
+
+  function toggleChem(id){chemIds[1](chemIds[0].indexOf(id)>=0?chemIds[0].filter(function(x){return x!==id;}):chemIds[0].concat([id]));}
+  function toggleEquip(id){equipIds[1](equipIds[0].indexOf(id)>=0?equipIds[0].filter(function(x){return x!==id;}):equipIds[0].concat([id]));}
+  function toggleTag(t){tags[1](tags[0].indexOf(t)>=0?tags[0].filter(function(x){return x!==t;}):tags[0].concat([t]));}
+
+  // chemicals filtered by category, plus any already selected outside it
+  var filtered=ctx.chem.filter(function(c){
+    if(showAllChem[0]||!cat[0]) return true;
+    return c.cat===cat[0] || chemIds[0].indexOf(c.id)>=0;
+  });
+
+  function done(){
+    if(!name[0].trim()){alert("스텝 이름을 입력하세요");return;}
+    props.onSave(Object.assign({},st0,{name:name[0].trim(),cat:cat[0],chemIds:chemIds[0],equipIds:equipIds[0],
+      dilution:dil[0],tools:tools[0],estMin:parseInt(est[0])||0,panel:panel[0],tags:tags[0],usedMl:parseInt(usedMl[0])||0}));
+  }
+  return h(Sheet,{close:props.close,title:st0._new?"스텝 편집":"스텝 편집",children:[
+    h("label",{className:"fl",key:1},"스텝 이름"),
+    h("input",{key:2,className:"inp",placeholder:"예: 폼 도포, 휠 세척, 세라믹 코팅",value:name[0],onChange:function(e){name[1](e.target.value);}}),
+
+    h("label",{className:"fl",key:3},"카테고리 (선택 시 케미컬 자동 필터)"),
+    h("div",{key:4,className:"chips"},CATS.map(function(c){
+      return h("span",{key:c.k,className:"chip"+(cat[0]===c.k?" on":""),onClick:function(){cat[1](cat[0]===c.k?"":c.k);showAllChem[1](false);}},c.n);})),
+
+    h("label",{className:"fl",key:5},"케미컬"+(cat[0]&&!showAllChem[0]?(" · "+catName(cat[0])+" 카테고리"):"")),
+    ctx.chem.length===0?h("div",{key:6,className:"tiny"},"케미컬 탭에서 먼저 등록하세요")
+      :h("div",{key:6},
+        h("div",{className:"chips"},filtered.length===0
+          ? [h("span",{key:"x",className:"tiny"},"이 카테고리에 등록된 케미컬이 없어요")]
+          : filtered.map(function(c){
+              return h("span",{key:c.id,className:"chip"+(chemIds[0].indexOf(c.id)>=0?" on":""),onClick:function(){toggleChem(c.id);}},
+                c.name,c.subtype?h("span",{style:{opacity:.6,fontSize:11}}," "+c.subtype):null);})),
+        cat[0]&&h("button",{className:"chip sm",style:{marginTop:8,color:"var(--accent)"},onClick:function(){showAllChem[1](!showAllChem[0]);}},
+          showAllChem[0]?"카테고리만 보기":"＋ 다른 케미컬 추가")),
+
+    h("label",{className:"fl",key:7},"희석비"),
+    h("div",{key:"dil",className:"chips"},DILUTIONS.map(function(d){
+      return h("span",{key:d,className:"chip"+(dil[0]===d?" on":""),onClick:function(){dil[1](dil[0]===d?"":d);}},d);})),
+
+    h("label",{className:"fl",key:"mll"},"사용량 (ml)"),
+    h("div",{key:"mlr",className:"row",style:{gap:8}},
+      h("button",{className:"btn ghost sm",onClick:function(){usedMl[1](Math.max(0,(parseInt(usedMl[0])||0)-5));}},"－5"),
+      h("input",{className:"inp",style:{textAlign:"center"},type:"number",inputMode:"numeric",value:usedMl[0]||"",onChange:function(e){usedMl[1](e.target.value);}}),
+      h("button",{className:"btn ghost sm",onClick:function(){usedMl[1]((parseInt(usedMl[0])||0)+5);}},"＋5"),
+      h("button",{className:"btn ghost sm",onClick:function(){usedMl[1]((parseInt(usedMl[0])||0)+10);}},"＋10")),
+    chemIds[0].length>0&&usedMl[0]>0&&h("div",{key:"ml",className:"tiny",style:{marginTop:4}},"완료 시 선택 케미컬에서 차감돼요"),
+
+    h("label",{className:"fl",key:8},"장비"),
+    ctx.equip.length===0?h("div",{key:9,className:"tiny"},"장비 탭에서 등록하면 여기서 선택할 수 있어요")
+      :h("div",{key:9,className:"chips"},ctx.equip.map(function(eq){
+        return h("span",{key:eq.id,className:"chip"+(equipIds[0].indexOf(eq.id)>=0?" on":""),onClick:function(){toggleEquip(eq.id);}},eq.name);})),
+
+    h("label",{className:"fl",key:10},"적용 부위"),
+    h("div",{key:11,className:"chips"},PANELS.map(function(p){
+      return h("span",{key:p,className:"chip"+(panel[0]===p?" on":""),onClick:function(){panel[1](panel[0]===p?"":p);}},p);})),
+
+    h("label",{className:"fl",key:"em"},"예상 시간 (분)"),
+    h("div",{key:12,className:"row",style:{gap:8}},
+      h("button",{className:"btn ghost sm",onClick:function(){est[1](Math.max(0,(parseInt(est[0])||0)-5));}},"－5"),
+      h("input",{className:"inp",style:{textAlign:"center"},type:"number",inputMode:"numeric",value:est[0]||"",onChange:function(e){est[1](e.target.value);}}),
+      h("button",{className:"btn ghost sm",onClick:function(){est[1]((parseInt(est[0])||0)+5);}},"＋5"),
+      h("button",{className:"btn ghost sm",onClick:function(){est[1]((parseInt(est[0])||0)+10);}},"＋10")),
+    h("label",{className:"fl",key:"tm"},"나만의 메모 (선택)"),
+    h("input",{key:"ti",className:"inp",placeholder:"예: 5인치 패드 50% 오버랩, 이 제품은 2바리 권장",value:tools[0],onChange:function(e){tools[1](e.target.value);}}),
+
+    h("label",{className:"fl",key:13},"태그 (통계 분류축)"),
+    h("div",{key:14,className:"chips"},COMMON_TAGS.map(function(t){
+      return h("span",{key:t,className:"chip"+(tags[0].indexOf(t)>=0?" on":""),onClick:function(){toggleTag(t);}},t);})),
+
+    h("div",{key:15,style:{height:18}}),
+    h("button",{key:16,className:"btn",onClick:done},"저장"),
+    !st0._new&&h("button",{key:17,className:"btn ghost danger",style:{marginTop:10},onClick:function(){props.onDelete(st0.id);}},"스텝 삭제")
+  ]});
+}
+
+/* ---------------- GARAGE ---------------- */
+function GarageTab(props){
+  var ctx=props.ctx,edit=useState(null),detail=useState(null);
+  if(detail[0]){
+    var v=ctx.veh.find(function(x){return x.id===detail[0];});
+    if(v) return h(VehicleDetail,{v:v,ctx:ctx,
+      close:function(){detail[1](null);},
+      onEdit:function(){edit[1](v);}},
+      edit[0]&&h(VehicleEditor,{v:edit[0],ctx:ctx,close:function(){edit[1](null);}}));
+  }
+  return h("div",null,
+    ctx.veh.length===0&&h("div",{className:"empty"},h("div",{className:"e"},"🚗"),"등록된 차량이 없어요"),
+    ctx.veh.map(function(v){
+      var cs=coatingStatus(v.coating);
+      return h("div",{key:v.id,className:"card tap",onClick:function(){detail[1](v.id);}},
+        h("div",{className:"row"},
+          v.photo?h("img",{className:"thumb",src:v.photo}):h("div",{className:"thumb"},"🚗"),
+          h("div",{className:"grow"},h("div",{style:{fontWeight:700,fontSize:16}},v.name,
+            cs&&cs.state==="expired"&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(255,93,108,.15)",borderColor:"rgba(255,93,108,.4)",color:"var(--bad)"}},"코팅 만료"),
+            cs&&cs.state==="soon"&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(245,185,69,.13)",borderColor:"rgba(245,185,69,.35)",color:"var(--warn)"}},"코팅 임박")),
+            h("div",{className:"muted"},[v.model,v.plate].filter(Boolean).join(" · ")||"—"),
+            cs&&h("div",null,
+              h("div",{className:"row between",style:{marginTop:5}},
+                h("span",{className:"tiny"},"🛡 "+v.coating.type+" · "+(cs.daysLeft<0?("만료 "+(-cs.daysLeft)+"일 경과"):("D-"+cs.daysLeft))),
+                h("span",{className:"tiny"},cs.expDate+" 까지")),
+              h("div",{className:"gauge "+(cs.state==="expired"?"crit":cs.state==="soon"?"low":"")},h("div",{style:{width:cs.pct+"%"}}))))));
+    }),
+    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",model:"",plate:"",photo:"",coating:null});}},"+"),
+    edit[0]&&h(VehicleEditor,{v:edit[0],ctx:ctx,close:function(){edit[1](null);}}));
+}
+
+function VehicleDetail(props){
+  var v=props.v,ctx=props.ctx,edit=useState(false);
+  var cs=coatingStatus(v.coating);
+  var mySessions=ctx.sess.filter(function(s){return s.vehicleId===v.id;})
+    .sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
+  return h("div",null,
+    h("header",null,
+      h("button",{className:"hbtn",onClick:props.close},"‹"),
+      h("h1",{className:"ellip"},v.name),
+      h("button",{className:"hbtn",onClick:function(){edit[1](true);}},"✎")),
+    h("main",null,
+      v.photo&&h("img",{className:"thumb lg",src:v.photo,style:{marginBottom:12}}),
+      h("div",{className:"card"},
+        h("div",{style:{fontWeight:700,fontSize:17}},v.name),
+        h("div",{className:"muted"},[v.model,v.plate].filter(Boolean).join(" · ")||"—"),
+        cs&&h("div",{style:{marginTop:12}},
+          h("div",{className:"row between"},
+            h("span",{style:{fontWeight:700}},"🛡 "+v.coating.type),
+            h("span",{style:{fontWeight:800,color:cs.state==="expired"?"var(--bad)":cs.state==="soon"?"var(--warn)":"var(--good)"}},
+              cs.state==="expired"?("만료 "+(-cs.daysLeft)+"일 경과"):("D-"+cs.daysLeft))),
+          h("div",{className:"gauge "+(cs.state==="expired"?"crit":cs.state==="soon"?"low":""),style:{marginTop:8}},h("div",{style:{width:cs.pct+"%"}})),
+          h("div",{className:"tiny",style:{marginTop:6}},"시공 "+v.coating.date+" · 만료 예정 "+cs.expDate),
+          cs.state!=="ok"&&h("div",{className:"tiny",style:{marginTop:4,color:cs.state==="expired"?"var(--bad)":"var(--warn)"}},
+            cs.state==="expired"?"☔ 보호막이 만료됐어요 — 재시공을 고려하세요":"⏳ 곧 만료 — 재시공 준비할 때"))),
+
+      h("div",{className:"sectit",style:{marginTop:18}},"시공 이력 타임라인 · "+mySessions.length+"건"),
+      mySessions.length===0
+        ? h("div",{className:"tiny",style:{padding:"8px 2px"}},"이 차량의 세차 기록이 없어요")
+        : h("div",{className:"timeline"},mySessions.map(function(s){
+            var done=s.steps.filter(function(x){return x.done;}).length;
+            var hasCoat=s.steps.some(function(x){return x.cat==="coating"||x.cat==="lsp";});
+            return h("div",{key:s.id,className:"tlitem",onClick:function(){ctx.setOpen(s.id);}},
+              h("div",{className:"tldot"+(hasCoat?" coat":"")}),
+              h("div",{className:"card tap",style:{flex:1,marginBottom:0}},
+                h("div",{className:"row between"},
+                  h("div",{className:"grow"},
+                    h("div",{style:{fontWeight:700}},s.title,hasCoat&&h("span",{style:{marginLeft:6}},"🛡")),
+                    h("div",{className:"tiny",style:{marginTop:2}},s.date)),
+                  s.status==="done"?h("span",{className:"badge",style:{color:"var(--good)"}},"완료")
+                    :s.status==="running"?h("span",{className:"badge",style:{color:"var(--accent)"}},"진행중")
+                    :h("span",{className:"badge"},done+"/"+s.steps.length))));
+          })),
+      h("div",{style:{height:30}})),
+    edit[0]&&h(VehicleEditor,{v:v,ctx:ctx,close:function(){edit[1](false);}}));
+}
+function VehicleEditor(props){
+  var v0=props.v,ctx=props.ctx,fileRef=useRef(null);
+  var name=useState(v0.name),model=useState(v0.model),plate=useState(v0.plate),photo=useState(v0.photo);
+  var ct=v0.coating||{};
+  var cType=useState(ct.type||""),cDate=useState(ct.date||""),cMonths=useState(ct.months||0);
+  function save(){if(!name[0].trim()){alert("차량 이름을 입력하세요");return;}
+    var coating=(cType[0]&&cDate[0]&&cMonths[0])?{type:cType[0],date:cDate[0],months:parseInt(cMonths[0])||0}:null;
+    dbPut("vehicles",{id:v0.id,name:name[0].trim(),model:model[0],plate:plate[0],photo:photo[0],coating:coating}).then(ctx.reload).then(props.close);}
+  var cs=(cType[0]&&cDate[0]&&cMonths[0])?coatingStatus({type:cType[0],date:cDate[0],months:parseInt(cMonths[0])}):null;
+  return h(Sheet,{close:props.close,title:v0._new?"차량 등록":"차량 편집",children:[
+    h(PhotoInput,{key:"pi",photo:photo[0],onChange:function(d){photo[1](d);}}),
+    h("label",{className:"fl",key:1},"이름/별칭"),
+    h("input",{key:2,className:"inp",placeholder:"예: 흰둥이, 데일리",value:name[0],onChange:function(e){name[1](e.target.value);}}),
+    h("label",{className:"fl",key:3},"차종"),
+    h("input",{key:4,className:"inp",placeholder:"예: Tesla Model X",value:model[0],onChange:function(e){model[1](e.target.value);}}),
+    h("label",{className:"fl",key:5},"번호판"),
+    h("input",{key:6,className:"inp",value:plate[0],onChange:function(e){plate[1](e.target.value);}}),
+
+    h("div",{key:"cdiv",className:"divider"}),
+    h("div",{key:"ctit",className:"sectit"},"🛡 코팅 관리"),
+    h("label",{className:"fl",key:"cl1"},"코팅 종류 (선택 시 지속기간 자동)"),
+    h("div",{key:"ct",className:"chips"},COATING_TYPES.map(function(t){
+      return h("span",{key:t.n,className:"chip"+(cType[0]===t.n?" on":""),onClick:function(){cType[1](t.n);cMonths[1](t.m);}},t.n);})),
+    h("div",{key:"crow",className:"row",style:{gap:8}},
+      h("div",{className:"grow"},h("label",{className:"fl"},"시공일"),
+        h("input",{className:"inp",type:"date",value:cDate[0],onChange:function(e){cDate[1](e.target.value);}})),
+      h("div",{style:{width:120}},h("label",{className:"fl"},"지속(개월)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",value:cMonths[0]||"",onChange:function(e){cMonths[1](e.target.value);}}))),
+    cs&&h("div",{key:"cs",className:"tiny",style:{marginTop:8,color:cs.state==="expired"?"var(--bad)":cs.state==="soon"?"var(--warn)":"var(--good)"}},
+      cs.state==="expired"?("만료됨 ("+(-cs.daysLeft)+"일 경과) — 재시공 시기"):("만료까지 D-"+cs.daysLeft+" · "+cs.expDate)),
+    (cType[0]||cDate[0])&&h("button",{key:"cclr",className:"chip sm",style:{marginTop:8,color:"var(--txt3)"},onClick:function(){cType[1]("");cDate[1]("");cMonths[1](0);}},"코팅 정보 지우기"),
+
+    h("div",{key:7,style:{height:18}}),
+    h("button",{key:8,className:"btn",onClick:save},"저장"),
+    !v0._new&&h("button",{key:9,className:"btn ghost danger",style:{marginTop:10},onClick:function(){if(confirm("삭제할까요?"))dbDel("vehicles",v0.id).then(ctx.reload).then(props.close);}},"삭제")
+  ]});
+}
+
+/* ---------------- CHEMICALS ---------------- */
+function Bottle(props){
+  var pct=props.pct,gc=props.gc;
+  var fill=gc==="crit"?"#ff5d6c":gc==="low"?"#f5b945":"#22d3ee";
+  var H=34,y=34-(34*pct/100);
+  return h("svg",{width:26,height:46,viewBox:"0 0 26 46",style:{flex:"none"}},
+    // liquid (clipped to bottle body)
+    h("defs",null,h("clipPath",{id:"bc"+pct+gc},
+      h("rect",{x:4,y:10,width:18,height:34,rx:4}))),
+    h("rect",{x:4,y:10+y,width:18,height:34,fill:fill,opacity:.85,clipPath:"url(#bc"+pct+gc+")"}),
+    // bottle outline
+    h("rect",{x:4,y:10,width:18,height:34,rx:4,fill:"none",stroke:"var(--line2)",strokeWidth:1.5}),
+    h("rect",{x:9,y:4,width:8,height:7,rx:1.5,fill:"none",stroke:"var(--line2)",strokeWidth:1.5}),
+    h("line",{x1:8,y1:20,x2:18,y2:20,stroke:"var(--line)",strokeWidth:1}));
+}
+function ChemTab(props){
+  var ctx=props.ctx,edit=useState(null),filterCat=useState("");
+  var list=ctx.chem.filter(function(c){return !filterCat[0]||c.cat===filterCat[0];});
+  // group by category
+  var byCat={};
+  list.forEach(function(c){var k=c.cat||"etc";if(!byCat[k])byCat[k]=[];byCat[k].push(c);});
+  return h("div",null,
+    ctx.chem.length===0&&h("div",{className:"empty"},h("div",{className:"e"},"🧴"),"등록된 케미컬이 없어요"),
+    ctx.chem.length>0&&h("div",{className:"chips",style:{marginBottom:14}},
+      h("span",{className:"chip"+(filterCat[0]===""?" on":""),onClick:function(){filterCat[1]("");}},"전체"),
+      CATS.filter(function(c){return ctx.chem.some(function(x){return x.cat===c.k;});}).map(function(c){
+        return h("span",{key:c.k,className:"chip"+(filterCat[0]===c.k?" on":""),onClick:function(){filterCat[1](c.k);}},c.n);})),
+    CATS.filter(function(c){return byCat[c.k]&&byCat[c.k].length;}).map(function(cat){
+      return h("div",{key:cat.k},
+        h("div",{className:"sectit"},cat.n),
+        byCat[cat.k].map(function(c){
+          var vol=c.volMl||0,rem=c.remainMl!=null?c.remainMl:vol,pct=vol>0?Math.round(rem/vol*100):0;
+          var gc=pct<=15?"crit":pct<=35?"low":"";
+          return h("div",{key:c.id,className:"card tap",onClick:function(){edit[1](c);}},
+            h("div",{className:"row"},
+              c.photo?h("img",{className:"thumb",src:c.photo}):h("div",{className:"thumb"},"🧴"),
+              h("div",{className:"grow"},
+                h("div",{style:{fontWeight:700,fontSize:16}},c.name,c.subtype&&h("span",{className:"chip sm",style:{marginLeft:7}},c.subtype),
+                  vol>0&&pct<=15&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(255,93,108,.15)",borderColor:"rgba(255,93,108,.4)",color:"var(--bad)"}},"보충 필요")),
+                h("div",{className:"muted"},c.brand||"—"),
+                vol>0&&h("div",null,
+                  h("div",{className:"row between",style:{marginTop:5}},
+                    h("span",{className:"tiny"},rem+" / "+vol+"ml"),
+                    h("span",{className:"tiny",style:{color:gc==="crit"?"var(--bad)":gc==="low"?"var(--warn)":"var(--txt3)"}},pct+"%")),
+                  h("div",{className:"gauge "+gc},h("div",{style:{width:pct+"%"}})))),
+              vol>0&&h(Bottle,{pct:pct,gc:gc})));
+        }));
+    }),
+    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",brand:"",cat:"",subtype:"",notes:"",photo:"",volMl:0,remainMl:0,defaultMl:0});}},"+"),
+    edit[0]&&h(ChemEditor,{c:edit[0],ctx:ctx,close:function(){edit[1](null);}}));
+}
+function ChemEditor(props){
+  var c0=props.c,ctx=props.ctx,fileRef=useRef(null);
+  var name=useState(c0.name),brand=useState(c0.brand),cat=useState(c0.cat||""),subtype=useState(c0.subtype||"");
+  var notes=useState(c0.notes),photo=useState(c0.photo);
+  var vol=useState(c0.volMl||0),remain=useState(c0.remainMl!=null?c0.remainMl:(c0.volMl||0)),defMl=useState(c0.defaultMl||0);
+  var subs=catSubs(cat[0]);
+  function save(){
+    if(!name[0].trim()){alert("케미컬 이름을 입력하세요");return;}
+    dbPut("chemicals",{id:c0.id,name:name[0].trim(),brand:brand[0],cat:cat[0],subtype:subtype[0],notes:notes[0],photo:photo[0],
+      volMl:parseInt(vol[0])||0,remainMl:parseInt(remain[0])||0,defaultMl:parseInt(defMl[0])||0}).then(ctx.reload).then(props.close);
+  }
+  function imgSearch(){
+    if(!name[0].trim()){alert("먼저 제품명을 입력하세요");return;}
+    var q=encodeURIComponent((brand[0]?brand[0]+" ":"")+name[0]+" detailing");
+    window.open("https://www.google.com/search?tbm=isch&q="+q,"_blank");
+  }
+  return h(Sheet,{close:props.close,title:c0._new?"케미컬 등록":"케미컬 편집",children:[
+    h("button",{key:"s",className:"btn ghost sm",style:{width:"100%",marginBottom:8},onClick:imgSearch},"🔍 구글 이미지에서 제품 찾기"),
+    h(PhotoInput,{key:"pi",photo:photo[0],onChange:function(d){photo[1](d);}}),
+    h("div",{key:"sh",className:"tiny",style:{textAlign:"center",margin:"6px 0 2px"}},"구글 이미지에서 사진 복사 → 위 칸에 붙여넣기(Ctrl+V)"),
+
+    h("label",{className:"fl",key:1},"제품명"),
+    h("input",{key:2,className:"inp",placeholder:"예: BSD, 본드 디테일러",value:name[0],onChange:function(e){name[1](e.target.value);}}),
+    h("label",{className:"fl",key:3},"브랜드"),
+    h("input",{key:4,className:"inp",placeholder:"예: 가야바, 켐가이, 소낙스",value:brand[0],onChange:function(e){brand[1](e.target.value);}}),
+
+    h("label",{className:"fl",key:5},"대분류"),
+    h("div",{key:6,className:"chips"},CATS.map(function(c){
+      return h("span",{key:c.k,className:"chip"+(cat[0]===c.k?" on":""),onClick:function(){cat[1](c.k);subtype[1]("");}},c.n);})),
+    subs.length>0&&h("label",{className:"fl",key:7},"세부 분류"),
+    subs.length>0&&h("div",{key:8,className:"chips"},subs.map(function(st){
+      return h("span",{key:st,className:"chip"+(subtype[0]===st?" on":""),onClick:function(){subtype[1](subtype[0]===st?"":st);}},st);})),
+
+    h("div",{key:9,className:"row",style:{gap:8}},
+      h("div",{className:"grow"},h("label",{className:"fl"},"총 용량(ml)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",value:vol[0]||"",onChange:function(e){vol[1](e.target.value);if(c0._new)remain[1](e.target.value);}})),
+      h("div",{className:"grow"},h("label",{className:"fl"},"현재 잔량(ml)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",value:remain[0]||"",onChange:function(e){remain[1](e.target.value);}}))),
+    h("label",{className:"fl",key:10},"1회 기본 사용량(ml) · 스텝에 자동 채움"),
+    h("input",{key:11,className:"inp",type:"number",inputMode:"numeric",placeholder:"예: 20",value:defMl[0]||"",onChange:function(e){defMl[1](e.target.value);}}),
+
+    h("label",{className:"fl",key:12},"메모"),
+    h("textarea",{key:13,className:"inp",placeholder:"예: 기본 1:10, 휠은 1:4",value:notes[0],onChange:function(e){notes[1](e.target.value);}}),
+    h("div",{key:14,style:{height:18}}),
+    h("button",{key:15,className:"btn",onClick:save},"저장"),
+    !c0._new&&h("button",{key:16,className:"btn ghost danger",style:{marginTop:10},onClick:function(){if(confirm("삭제할까요?"))dbDel("chemicals",c0.id).then(ctx.reload).then(props.close);}},"삭제")
+  ]});
+}
+
+/* ---------------- EQUIPMENT ---------------- */
+function GearTab(props){
+  var ctx=props.ctx,edit=useState(null);
+  return h("div",null,
+    ctx.equip.length===0&&h("div",{className:"empty"},h("div",{className:"e"},"🛠"),
+      h("div",null,"등록된 장비가 없어요"),h("div",{className:"tiny",style:{marginTop:6}},"폴리셔, 폼랜서, 분무기… 내 컬렉션을 모아보세요")),
+    ctx.equip.map(function(eq){
+      var lim=eq.lifeLimit||0,u=eq.uses||0,pct=lim>0?Math.round(u/lim*100):0;
+      var warn=lim>0&&u>=lim, near=lim>0&&!warn&&u>=lim*0.8;
+      return h("div",{key:eq.id,className:"card tap",onClick:function(){edit[1](eq);}},
+        h("div",{className:"row"},
+          eq.photo?h("img",{className:"thumb",src:eq.photo}):h("div",{className:"thumb"},"🛠"),
+          h("div",{className:"grow"},h("div",{style:{fontWeight:700,fontSize:16}},eq.name,
+            warn&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(255,93,108,.15)",borderColor:"rgba(255,93,108,.4)",color:"var(--bad)"}},"교체 권장"),
+            near&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(245,185,69,.13)",borderColor:"rgba(245,185,69,.35)",color:"var(--warn)"}},"교체 임박")),
+            h("div",{className:"muted"},[eq.type,eq.brand].filter(Boolean).join(" · ")||"—"),
+            lim>0&&h("div",null,
+              h("div",{className:"row between",style:{marginTop:5}},
+                h("span",{className:"tiny"},"사용 "+u+" / "+lim+"회"),
+                h("span",{className:"tiny",style:{color:warn?"var(--bad)":near?"var(--warn)":"var(--txt3)"}},pct+"%")),
+              h("div",{className:"gauge "+(warn?"crit":near?"low":"")},h("div",{style:{width:Math.min(100,pct)+"%"}}))),
+            (lim===0&&u>0)&&h("div",{className:"tiny",style:{marginTop:3}},"사용 "+u+"회"),
+            eq.notes&&h("div",{className:"tiny ellip",style:{marginTop:2}},eq.notes))));
+    }),
+    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",type:"",brand:"",notes:"",photo:"",uses:0,lifeLimit:0});}},"+"),
+    edit[0]&&h(GearEditor,{eq:edit[0],ctx:ctx,close:function(){edit[1](null);}}));
+}
+function GearEditor(props){
+  var e0=props.eq,ctx=props.ctx;
+  var name=useState(e0.name),type=useState(e0.type||""),brand=useState(e0.brand||""),notes=useState(e0.notes||""),photo=useState(e0.photo);
+  var uses=useState(e0.uses||0),lifeLimit=useState(e0.lifeLimit||0);
+  function save(){if(!name[0].trim()){alert("장비 이름을 입력하세요");return;}
+    dbPut("equipment",{id:e0.id,name:name[0].trim(),type:type[0],brand:brand[0],notes:notes[0],photo:photo[0],
+      uses:parseInt(uses[0])||0,lifeLimit:parseInt(lifeLimit[0])||0}).then(ctx.reload).then(props.close);}
+  function imgSearch(){if(!name[0].trim()){alert("먼저 장비명을 입력하세요");return;}
+    window.open("https://www.google.com/search?tbm=isch&q="+encodeURIComponent((brand[0]?brand[0]+" ":"")+name[0]),"_blank");}
+  return h(Sheet,{close:props.close,title:e0._new?"장비 등록":"장비 편집",children:[
+    h("button",{key:"s",className:"btn ghost sm",style:{width:"100%",marginBottom:8},onClick:imgSearch},"🔍 구글 이미지에서 사진 찾기"),
+    h(PhotoInput,{key:"pi",photo:photo[0],onChange:function(d){photo[1](d);}}),
+    h("label",{className:"fl",key:1},"장비명"),
+    h("input",{key:2,className:"inp",placeholder:"예: 루폴 폴리셔, 폼랜서",value:name[0],onChange:function(e){name[1](e.target.value);}}),
+    h("label",{className:"fl",key:3},"종류"),
+    h("div",{key:4,className:"chips"},EQUIP_TYPES.map(function(t){
+      return h("span",{key:t,className:"chip"+(type[0]===t?" on":""),onClick:function(){type[1](type[0]===t?"":t);}},t);})),
+    h("label",{className:"fl",key:5},"브랜드"),
+    h("input",{key:6,className:"inp",placeholder:"예: Rupes, MJJC",value:brand[0],onChange:function(e){brand[1](e.target.value);}}),
+    h("div",{key:"lf",className:"row",style:{gap:8}},
+      h("div",{className:"grow"},h("label",{className:"fl"},"사용 횟수"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",value:uses[0]||"",onChange:function(e){uses[1](e.target.value);}})),
+      h("div",{className:"grow"},h("label",{className:"fl"},"교체 권장 횟수"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",placeholder:"예: 타올 30",value:lifeLimit[0]||"",onChange:function(e){lifeLimit[1](e.target.value);}}))),
+    h("div",{key:"lh",className:"tiny",style:{marginTop:4}},"교체 권장 횟수를 정하면 세션에서 사용 시 자동 카운트되고 임박/초과 시 경고해요"),
+    h("label",{className:"fl",key:7},"메모"),
+    h("textarea",{key:8,className:"inp",placeholder:"예: 5인치 백킹플레이트, 구매일",value:notes[0],onChange:function(e){notes[1](e.target.value);}}),
+    h("div",{key:9,style:{height:18}}),
+    h("button",{key:10,className:"btn",onClick:save},"저장"),
+    !e0._new&&h("button",{key:11,className:"btn ghost danger",style:{marginTop:10},onClick:function(){if(confirm("삭제할까요?"))dbDel("equipment",e0.id).then(ctx.reload).then(props.close);}},"삭제")
+  ]});
+}
+
+/* ---------------- REPORT ---------------- */
+function Report(props){
+  var s=props.s,ctx=props.ctx;
+  var reportRef=useRef(null), saving=useState(false);
+  var v=ctx.veh.find(function(x){return x.id===s.vehicleId;});
+  var totalAct=s.steps.reduce(function(a,b){return a+(b.actualSec||0);},0);
+  var chemUsed=[];
+  s.steps.forEach(function(st){(st.chemIds||[]).forEach(function(cid){
+    if(st.usedMl>0){var c=ctx.chem.find(function(x){return x.id===cid;});if(c)chemUsed.push({name:c.name,ml:Math.round(st.usedMl/((st.chemIds||[]).length||1))});}
+  });});
+  var mapUrl=s.geo?("https://staticmap.openstreetmap.de/staticmap.php?center="+s.geo.lat+","+s.geo.lng+"&zoom=15&size=600x240&markers="+s.geo.lat+","+s.geo.lng+",red-pushpin"):null;
+
+  function savePng(){
+    if(typeof html2canvas==="undefined"){alert("이미지 변환 모듈을 불러오지 못했어요(오프라인?). 인쇄 저장을 이용하세요.");return;}
+    saving[1](true);
+    html2canvas(reportRef.current,{scale:2,backgroundColor:"#ffffff",useCORS:true,logging:false}).then(function(canvas){
+      canvas.toBlob(function(blob){
+        var url=URL.createObjectURL(blob);
+        var a=document.createElement("a");
+        a.href=url; a.download="detail-report-"+s.date+".png";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){URL.revokeObjectURL(url);},1000);
+        saving[1](false);
+      },"image/png");
+    }).catch(function(){ saving[1](false); alert("이미지 저장에 실패했어요. 인쇄 저장을 이용하세요."); });
+  }
+
+  return h("div",null,
+    h("header",null,
+      h("button",{className:"hbtn",onClick:props.close},"‹"),
+      h("h1",null,"세차 리포트"),
+      h("button",{className:"hbtn",onClick:savePng,title:"이미지로 저장"},saving[0]?"…":"📷"),
+      h("button",{className:"hbtn",onClick:function(){window.print();},title:"인쇄/PDF"},"⤓")),
+    h("main",null,
+      h("div",{className:"report",ref:reportRef},
+        h("div",{className:"rhead"},
+          h("h3",null,s.title),
+          h("div",{style:{opacity:.85,fontSize:14}},(v?v.name+(v.model?" · "+v.model:""):"차량 미지정")+" · "+s.date),
+          s.location&&h("div",{style:{opacity:.7,fontSize:13,marginTop:4}},"📍 "+s.location)),
+        h("div",{className:"rbody"},
+          h("div",{className:"rstat"},
+            h("div",null,h("div",{className:"n"},fmtMin(totalAct)),h("div",{className:"l"},"총 소요")),
+            h("div",null,h("div",{className:"n"},s.steps.length),h("div",{className:"l"},"단계")),
+            h("div",null,h("div",{className:"n"},won(s.cost)),h("div",{className:"l"},"비용"))),
+
+          (s.beforePhotos&&s.beforePhotos.length>0||s.resultPhotos&&s.resultPhotos.length>0)&&h("div",{className:"rsec"},
+            h("h4",null,"전 / 후"),
+            h("div",{className:"rgrid"},
+              (s.beforePhotos||[]).slice(0,1).map(function(p,i){return h("div",{key:"b"+i},h("img",{src:p}),h("div",{style:{fontSize:11,color:"#888",textAlign:"center",marginTop:2}},"BEFORE"));}),
+              (s.resultPhotos||[]).slice(0,1).map(function(p,i){return h("div",{key:"a"+i},h("img",{src:p}),h("div",{style:{fontSize:11,color:"#888",textAlign:"center",marginTop:2}},"AFTER"));}))),
+
+          (s.resultPhotos&&s.resultPhotos.length>1)&&h("div",{className:"rsec"},
+            h("h4",null,"결과 사진"),
+            h("div",{className:"rgrid"},s.resultPhotos.slice(1).map(function(p,i){return h("img",{key:i,src:p});}))),
+
+          h("div",{className:"rsec"},h("h4",null,"진행 단계 · 소요시간"),
+            h("table",null,h("tbody",null,s.steps.map(function(st,i){
+              return h("tr",{key:st.id},
+                h("td",{style:{width:24,color:"#aaa"}},i+1),
+                h("td",null,st.name+(st.cat?(" ("+catName(st.cat)+")"):"")),
+                h("td",{style:{textAlign:"right",fontVariantNumeric:"tabular-nums",whiteSpace:"nowrap"}},st.actualSec?fmtClock(st.actualSec):"—"));
+            })))),
+
+          s.steps.some(function(st){return st.photos&&st.photos.length;})&&h("div",{className:"rsec"},h("h4",null,"과정 사진"),
+            s.steps.filter(function(st){return st.photos&&st.photos.length;}).map(function(st){
+              return h("div",{key:st.id,style:{marginBottom:10}},
+                h("div",{style:{fontSize:12,fontWeight:700,marginBottom:4}},st.name),
+                h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}},
+                  st.photos.map(function(p,idx){return h("img",{key:idx,src:p,style:{width:"100%",aspectRatio:"1",objectFit:"cover",borderRadius:6}});})));
+            })),
+
+          chemUsed.length>0&&h("div",{className:"rsec"},h("h4",null,"사용 케미컬"),
+            h("table",null,h("tbody",null,chemUsed.map(function(c,i){
+              return h("tr",{key:i},h("td",null,c.name),h("td",{style:{textAlign:"right"}},c.ml+"ml"));})))),
+
+          mapUrl&&h("div",{className:"rsec"},h("h4",null,"위치"),
+            h("img",{src:mapUrl,style:{width:"100%",borderRadius:8},onError:function(e){e.target.style.display="none";}}),
+            h("div",{style:{fontSize:11,color:"#888",marginTop:4}},s.geo.lat.toFixed(5)+", "+s.geo.lng.toFixed(5))),
+
+          (s.review.good||s.review.improve)&&h("div",{className:"rsec"},h("h4",null,"복기"),
+            s.review.good&&h("div",{style:{fontSize:13,marginBottom:6}},h("b",null,"잘된 점 · "),s.review.good),
+            s.review.improve&&h("div",{style:{fontSize:13}},h("b",null,"개선 · "),s.review.improve)))),
+      h("div",{style:{height:30}})));
+}
+
+/* ---------------- STATS ---------------- */
+function StatsTab(props){
+  var ctx=props.ctx;
+  var totalCost=ctx.sess.reduce(function(a,s){return a+(s.cost||0);},0);
+  var totalTime=ctx.sess.reduce(function(a,s){return a+s.steps.reduce(function(b,x){return b+(x.actualSec||0);},0);},0);
+  var tagAgg={};
+  ctx.sess.forEach(function(s){s.steps.forEach(function(x){(x.tags||[]).forEach(function(t){if(!tagAgg[t])tagAgg[t]={sec:0,n:0};tagAgg[t].sec+=(x.actualSec||0);tagAgg[t].n++;});});});
+  var tagRows=Object.keys(tagAgg).map(function(t){return {t:t,avg:tagAgg[t].sec/tagAgg[t].n,n:tagAgg[t].n};}).filter(function(r){return r.avg>0;}).sort(function(a,b){return b.avg-a.avg;});
+  var chemUse={};
+  ctx.sess.forEach(function(s){s.steps.forEach(function(x){(x.chemIds||[]).forEach(function(id){chemUse[id]=(chemUse[id]||0)+1;});});});
+  var chemRows=Object.keys(chemUse).map(function(id){var c=ctx.chem.find(function(x){return x.id===id;});return {name:c?c.name:"?",n:chemUse[id]};}).sort(function(a,b){return b.n-a.n;}).slice(0,8);
+  var lowChem=ctx.chem.filter(function(c){return (c.volMl||0)>0 && (c.remainMl!=null?c.remainMl:c.volMl)/c.volMl<=0.2;});
+
+  if(ctx.sess.length===0&&ctx.chem.length===0) return h("div",{className:"empty"},h("div",{className:"e"},"📊"),"세션이 쌓이면 통계가 보여요");
+  return h("div",null,
+    h("div",{className:"row",style:{gap:8,marginBottom:14}},
+      h("div",{className:"statbox"},h("div",{className:"n"},ctx.sess.length),h("div",{className:"l"},"총 세션")),
+      h("div",{className:"statbox"},h("div",{className:"n"},Math.round(totalTime/3600*10)/10+"h"),h("div",{className:"l"},"총 시간")),
+      h("div",{className:"statbox"},h("div",{className:"n",style:{fontSize:16}},won(totalCost)),h("div",{className:"l"},"총 비용"))),
+
+    lowChem.length>0&&h("div",{className:"card",style:{borderColor:"var(--warn)"}},
+      h("div",{className:"sectit",style:{color:"var(--warn)"}},"⚠ 잔량 부족 케미컬"),
+      lowChem.map(function(c){return h("div",{key:c.id,className:"row between",style:{padding:"4px 0"}},
+        h("span",null,c.name),h("span",{className:"muted"},c.remainMl+"/"+c.volMl+"ml"));})),
+
+    tagRows.length>0&&h("div",{className:"card"},
+      h("div",{className:"sectit"},"태그별 평균 소요시간"),
+      tagRows.map(function(r){var max=tagRows[0].avg;
+        return h("div",{key:r.t,style:{marginBottom:10}},
+          h("div",{className:"row between"},h("span",{className:"chip tag"},r.t),
+            h("span",{className:"muted",style:{fontWeight:700}},fmtMin(r.avg)+" · "+r.n+"회")),
+          h("div",{style:{height:6,background:"var(--surface2)",borderRadius:3,marginTop:6,overflow:"hidden"}},
+            h("div",{style:{height:"100%",width:(r.avg/max*100)+"%",background:"var(--accent)"}})));})),
+
+    chemRows.length>0&&h("div",{className:"card"},
+      h("div",{className:"sectit"},"자주 쓰는 케미컬"),
+      chemRows.map(function(r,i){return h("div",{key:i,className:"row between",style:{padding:"5px 0"}},
+        h("span",{className:"ellip"},r.name),h("span",{className:"muted",style:{fontWeight:700}},r.n+"회"));})));
+}
+
+/* ---------------- SETTINGS / BACKUP ---------------- */
+var STORES=["vehicles","chemicals","equipment","sessions","templates"];
+function SettingsSheet(props){
+  var ctx=props.ctx, fileRef=useRef(null), busy=useState(false);
+
+  function exportData(){
+    Promise.all(STORES.map(function(s){return dbAll(s);})).then(function(arr){
+      var data={app:"detaillog",version:2,exportedAt:new Date().toISOString(),stores:{}};
+      STORES.forEach(function(s,i){data.stores[s]=arr[i];});
+      var blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement("a");
+      var d=new Date();
+      a.href=url; a.download="detaillog-backup-"+d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+".json";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){URL.revokeObjectURL(url);},1000);
+    });
+  }
+
+  function importData(e){
+    var file=e.target.files[0]; e.target.value="";
+    if(!file)return;
+    var r=new FileReader();
+    r.onload=function(){
+      var data;
+      try{ data=JSON.parse(r.result); }catch(err){ alert("백업 파일을 읽을 수 없어요. 올바른 JSON인지 확인하세요."); return; }
+      if(!data.stores){ alert("디테일로그 백업 형식이 아니에요."); return; }
+      var counts=STORES.map(function(s){return (data.stores[s]||[]).length;});
+      if(!confirm("복원하면 현재 데이터를 백업으로 덮어씁니다.\n\n차량 "+counts[0]+" · 케미컬 "+counts[1]+" · 장비 "+counts[2]+" · 세션 "+counts[3]+" · 템플릿 "+counts[4]+"\n\n계속할까요?")) return;
+      busy[1](true);
+      // clear then write
+      var clearOps=STORES.map(function(s){
+        return new Promise(function(res){var st=tx(s,"readwrite");st.clear().onsuccess=function(){res();};});
+      });
+      Promise.all(clearOps).then(function(){
+        var putOps=[];
+        STORES.forEach(function(s){ (data.stores[s]||[]).forEach(function(v){ putOps.push(dbPut(s,v)); }); });
+        return Promise.all(putOps);
+      }).then(function(){ return ctx.reload(); }).then(function(){ busy[1](false); alert("복원 완료!"); props.close(); });
+    };
+    r.readAsText(file);
+  }
+
+  function resetAll(){
+    if(!confirm("모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없어요. 먼저 백업을 권장해요."))return;
+    if(!confirm("정말 전부 삭제할까요?"))return;
+    busy[1](true);
+    Promise.all(STORES.map(function(s){
+      return new Promise(function(res){var st=tx(s,"readwrite");st.clear().onsuccess=function(){res();};});
+    })).then(function(){return ctx.reload();}).then(function(){busy[1](false);alert("삭제 완료");props.close();});
+  }
+
+  var totals={v:ctx.veh.length,c:ctx.chem.length,e:ctx.equip.length,s:ctx.sess.length};
+  return h(Sheet,{close:props.close,title:"설정 · 백업",children:[
+    h("div",{key:"st",className:"card",style:{background:"var(--surface2)"}},
+      h("div",{className:"sectit"},"저장된 데이터"),
+      h("div",{className:"row",style:{gap:8}},
+        h("div",{className:"statbox"},h("div",{className:"n"},totals.v),h("div",{className:"l"},"차량")),
+        h("div",{className:"statbox"},h("div",{className:"n"},totals.c),h("div",{className:"l"},"케미컬")),
+        h("div",{className:"statbox"},h("div",{className:"n"},totals.e),h("div",{className:"l"},"장비")),
+        h("div",{className:"statbox"},h("div",{className:"n"},totals.s),h("div",{className:"l"},"세션")))),
+
+    h("div",{key:"bk",className:"sectit",style:{marginTop:18}},"백업"),
+    h("div",{key:"bkh",className:"tiny",style:{marginBottom:10}},"모든 데이터(사진 포함)를 JSON 파일 하나로 내보내요. 구글 드라이브·메일 등에 보관하면 기기를 바꿔도 안전해요."),
+    h("button",{key:"exp",className:"btn",onClick:exportData},"⤓ 백업 파일 내보내기"),
+
+    h("div",{key:"rs",className:"sectit",style:{marginTop:18}},"복원"),
+    h("div",{key:"rsh",className:"tiny",style:{marginBottom:10}},"백업 파일을 불러와 현재 데이터를 덮어써요."),
+    h("button",{key:"imp",className:"btn ghost",onClick:function(){fileRef.current.click();}},busy[0]?"복원 중…":"⤒ 백업 파일에서 복원"),
+    h("input",{key:"f",ref:fileRef,type:"file",accept:"application/json,.json",className:"hidden",onChange:importData}),
+
+    h("div",{key:"dz",className:"sectit",style:{marginTop:22,color:"var(--bad)"}},"위험 구역"),
+    h("button",{key:"rst",className:"btn ghost danger",onClick:resetAll},"전체 데이터 삭제"),
+    h("div",{key:"sp",style:{height:8}})
+  ]});
+}
+
+/* ---------------- sheet ---------------- */
+function Sheet(props){
+  function bg(e){if(e.target===e.currentTarget)props.close();}
+  return h("div",{className:"scrim",onClick:bg},
+    h("div",{className:"sheet"},h("div",{className:"grab"}),
+      props.title&&h("h2",null,props.title),props.children));
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
