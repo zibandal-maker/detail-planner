@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#121829">
 <title>세차 플래너</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="apple-touch-icon" href="/icon-192.png">
@@ -180,6 +182,7 @@ textarea.inp{resize:vertical;min-height:64px}
   box-shadow:0 0 10px rgba(52,224,161,.5)}
 .gauge.low>div{background:linear-gradient(90deg,#f5b945,#ffd66e);box-shadow:0 0 10px rgba(245,185,69,.5)}
 .gauge.crit>div{background:linear-gradient(90deg,#ff5d6c,#ff8a5d);box-shadow:0 0 10px rgba(255,93,108,.5)}
+.statusdot{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
 
 /* report stays light/print-friendly, with ceramic gradient header */
 .report{background:#fff;color:#15171e;border-radius:18px;overflow:hidden;
@@ -241,6 +244,7 @@ textarea.inp{resize:vertical;min-height:64px}
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 "use strict";
 var h = React.createElement;
@@ -322,6 +326,21 @@ var STEP_PRESETS=[
 var DILUTIONS=["원액","1:1","1:3","1:4","1:5","1:10","1:15","1:20","1:50","1:100"];
 var SESSION_PRESETS=["간단 세차","풀 디테일링","유막 제거","발수 코팅","실란트/왁스","광택","세라믹 코팅","실내 디테일링","유지관리 세차","신차 시공"];
 
+/* 레시피(템플릿) 상황 프리셋 — situation 키로 저장 */
+var RECIPE_SITUATIONS=[
+  {k:"daily",   n:"데일리",     icon:"🚗"},
+  {k:"quick",   n:"급속",       icon:"⚡"},
+  {k:"rainy",   n:"장마철",     icon:"🌧"},
+  {k:"winter",  n:"겨울철",     icon:"❄️"},
+  {k:"summer",  n:"여름철",     icon:"☀️"},
+  {k:"detail",  n:"정밀 디테일링", icon:"✨"},
+  {k:"coating", n:"코팅 시공",   icon:"🛡"},
+  {k:"interior",n:"실내",       icon:"🧽"},
+  {k:"new",     n:"신차",       icon:"🆕"}
+];
+function recipeSituation(k){return RECIPE_SITUATIONS.find(function(x){return x.k===k;})||null;}
+
+
 /* ===== IndexedDB ===== */
 var DB=null;
 var DBNAME=(window.DEMO_MODE?"detaillog_demo":"detaillog");
@@ -353,28 +372,33 @@ function seedDemo(){
     if(existing&&existing.length>0) return; // already has data, skip
     var now=Date.now();
     var vehicles=[
-      {id:"v_modelx",name:"화이트 펄",model:"Tesla Model X",plate:"서울 12가 3456",photo:"",
-        coating:{type:"세라믹 코팅",date:dateOffset(350),months:12}},
-      {id:"v_gv80",name:"데일리 GV80",model:"Genesis GV80",plate:"경기 78나 9012",photo:"",
-        coating:{type:"물왁스",date:dateOffset(40),months:1}}
+      {id:"v_tesla",name:"블랙 테슬라",model:"Tesla Model 3",plate:"서울 12가 3456",photo:"",
+        coating:{type:"세라믹 코팅",date:dateOffset(60),months:12}},
+      {id:"v_gv80",name:"화이트 제네시스",model:"Genesis GV80",plate:"경기 78나 9012",photo:"",
+        coating:{type:"유리막 코팅",date:dateOffset(250),months:9}},
+      {id:"v_bmw",name:"그레이 BMW",model:"BMW 520d",plate:"인천 34다 5678",photo:"",
+        coating:{type:"물왁스",date:dateOffset(40),months:1}},
+      {id:"v_golf",name:"블루 골프",model:"VW Golf",plate:"경기 90라 1234",photo:"",
+        coating:{type:"실란트",date:dateOffset(95),months:4}}
     ];
     var chemicals=[
-      {id:"ch_snow",name:"액티브 폼",brand:"빌트해머",cat:"prewash",subtype:"스노우폼",notes:"1:10, 폼랜서",photo:"",volMl:1000,remainMl:430,defaultMl:80},
-      {id:"ch_alk",name:"트래픽 필름 리무버",brand:"오토피네사",cat:"prewash",subtype:"알칼리",notes:"하부·묵은때",photo:"",volMl:500,remainMl:120,defaultMl:50},
-      {id:"ch_sham",name:"카샴푸 중성",brand:"가야바",cat:"shampoo",subtype:"중성",notes:"1:1000, 투버킷",photo:"",volMl:1000,remainMl:760,defaultMl:30},
-      {id:"ch_wheel",name:"휠 클리너",brand:"소낙스",cat:"wheel",subtype:"휠클리너(중성)",notes:"원액 분사",photo:"",volMl:750,remainMl:300,defaultMl:60},
-      {id:"ch_iron",name:"아이언X",brand:"카프로",cat:"iron",subtype:"아이언리무버",notes:"보라색 반응",photo:"",volMl:500,remainMl:85,defaultMl:40},
-      {id:"ch_tar",name:"타르 리무버",brand:"발리스톨",cat:"bugtar",subtype:"타르리무버",notes:"",photo:"",volMl:400,remainMl:260,defaultMl:20},
-      {id:"ch_clay",name:"클레이 루브",brand:"본드",cat:"clay",subtype:"루브리컨트",notes:"충분히 분사",photo:"",volMl:1000,remainMl:540,defaultMl:50},
-      {id:"ch_comp",name:"FG400 컴파운드",brand:"멘저나",cat:"polish",subtype:"컴파운드",notes:"오렌지 패드",photo:"",volMl:250,remainMl:160,defaultMl:8},
-      {id:"ch_pol",name:"SF3500 폴리시",brand:"멘저나",cat:"polish",subtype:"폴리시",notes:"블랙 패드",photo:"",volMl:250,remainMl:190,defaultMl:8},
-      {id:"ch_coat",name:"세라믹 코팅 9H",brand:"그래핀웍스",cat:"coating",subtype:"세라믹",notes:"플래싱 1분 후 버핑",photo:"",volMl:50,remainMl:18,defaultMl:3},
-      {id:"ch_bsd",name:"BSD 물왁스",brand:"가야바",cat:"lsp",subtype:"물왁스",notes:"1:5, 젖은차 도포",photo:"",volMl:1000,remainMl:240,defaultMl:20},
+      {id:"ch_snow",name:"시트러스 프리워시",brand:"디테일랩",cat:"prewash",subtype:"스노우폼",notes:"1:10, 폼랜서",photo:"",volMl:500,remainMl:430,defaultMl:80,openedDate:dateOffset(45),shelfMonths:24,boughtDate:dateOffset(50),price:18000},
+      {id:"ch_alk",name:"트래픽 필름 리무버",brand:"오토피네사",cat:"prewash",subtype:"알칼리",notes:"하부·묵은때",photo:"",volMl:500,remainMl:95,defaultMl:50,openedDate:dateOffset(120),shelfMonths:12,boughtDate:dateOffset(130),price:22000},
+      {id:"ch_sham",name:"PH중성 카샴푸",brand:"디테일랩",cat:"shampoo",subtype:"중성",notes:"1:1000, 투버킷",photo:"",volMl:500,remainMl:380,defaultMl:30,openedDate:dateOffset(30),shelfMonths:24,boughtDate:dateOffset(35),price:16000},
+      {id:"ch_wheel",name:"휠 클리너",brand:"소낙스",cat:"wheel",subtype:"휠클리너(중성)",notes:"원액 분사",photo:"",volMl:750,remainMl:300,defaultMl:60,openedDate:"",shelfMonths:0,boughtDate:"",price:0},
+      {id:"ch_iron",name:"아이언 리무버",brand:"디테일랩",cat:"iron",subtype:"아이언리무버",notes:"보라색 반응",photo:"",volMl:500,remainMl:85,defaultMl:40,openedDate:dateOffset(400),shelfMonths:12,boughtDate:dateOffset(410),price:24000},
+      {id:"ch_tar",name:"타르 리무버",brand:"발리스톨",cat:"bugtar",subtype:"타르리무버",notes:"",photo:"",volMl:400,remainMl:260,defaultMl:20,boughtDate:dateOffset(90),price:19000},
+      {id:"ch_clay",name:"클레이 루브",brand:"본드",cat:"clay",subtype:"루브리컨트",notes:"충분히 분사",photo:"",volMl:1000,remainMl:540,defaultMl:50,boughtDate:dateOffset(75),price:15000},
+      {id:"ch_comp",name:"FG400 컴파운드",brand:"멘저나",cat:"polish",subtype:"컴파운드",notes:"오렌지 패드",photo:"",volMl:250,remainMl:160,defaultMl:8,boughtDate:dateOffset(110),price:32000},
+      {id:"ch_pol",name:"SF3500 폴리시",brand:"멘저나",cat:"polish",subtype:"폴리시",notes:"블랙 패드",photo:"",volMl:250,remainMl:190,defaultMl:8,boughtDate:dateOffset(110),price:30000},
+      {id:"ch_coat",name:"세라믹 코팅 9H",brand:"그래핀웍스",cat:"coating",subtype:"세라믹",notes:"플래싱 1분 후 버핑",photo:"",volMl:50,remainMl:18,defaultMl:3,boughtDate:dateOffset(200),price:89000},
+      {id:"ch_bsd",name:"BSD 물왁스",brand:"가야바",cat:"lsp",subtype:"물왁스",notes:"1:5, 젖은차 도포",photo:"",volMl:1000,remainMl:240,defaultMl:20,boughtDate:dateOffset(60),price:21000},
       {id:"ch_qd",name:"퀵 디테일러",brand:"미구아이어스",cat:"lsp",subtype:"퀵디테일러",notes:"",photo:"",volMl:750,remainMl:600,defaultMl:15},
       {id:"ch_glass",name:"유리 세정제",brand:"스톤어",cat:"glass",subtype:"유리세정",notes:"",photo:"",volMl:500,remainMl:410,defaultMl:20},
       {id:"ch_oilfilm",name:"유막 제거제",brand:"불스원",cat:"glass",subtype:"유막제거",notes:"산화세륨, 패드 사용",photo:"",volMl:300,remainMl:140,defaultMl:30},
       {id:"ch_apc",name:"올퍼포스 클리너",brand:"코흐케미",cat:"interior",subtype:"다목적(APC)",notes:"1:10 희석",photo:"",volMl:1000,remainMl:820,defaultMl:40},
-      {id:"ch_tire",name:"타이어 드레싱",brand:"가야바",cat:"wheel",subtype:"타이어 드레싱",notes:"어플리케이터",photo:"",volMl:500,remainMl:350,defaultMl:25}
+      {id:"ch_leather",name:"가죽 클리너",brand:"레더마스터",cat:"interior",subtype:"가죽",notes:"브러시 후 닦기",photo:"",volMl:500,remainMl:330,defaultMl:25},
+      {id:"ch_tire",name:"타이어 드레싱",brand:"디테일랩",cat:"wheel",subtype:"타이어 드레싱",notes:"어플리케이터",photo:"",volMl:500,remainMl:350,defaultMl:25}
     ];
     var equipment=[
       {id:"eq_da",name:"루펠 LHR15 마크3",cat:"polisher",type:"폴리셔/DA",brand:"Rupes",notes:"5인치 백킹플레이트",photo:"",uses:12,lifeLimit:0},
@@ -386,61 +410,113 @@ function seedDemo(){
       {id:"eq_blow",name:"송풍기",cat:"tool",type:"송풍기",brand:"메탈배큠",notes:"틈새 물기 제거",photo:"",uses:10,lifeLimit:0},
       {id:"eq_mitt",name:"양모 워시미트",cat:"towel",type:"워시미트/장갑",brand:"람스울",notes:"투버킷 전용",photo:"",uses:26,lifeLimit:30},
       {id:"eq_towel",name:"드라잉 타올 1200gsm",cat:"towel",type:"건조타올",brand:"오토피네사",notes:"세탁 후 재사용",photo:"",uses:31,lifeLimit:30},
-      {id:"eq_brush",name:"휠 브러시 세트",cat:"applibrush",type:"브러시",brand:"몬테카를로",notes:"배럴+페이스",photo:"",uses:20,lifeLimit:0},
+      {id:"eq_brush",name:"디테일링 브러시",cat:"applibrush",type:"브러시",brand:"디테일랩",notes:"엠블럼·송풍구용",photo:"",uses:20,lifeLimit:0},
+      {id:"eq_wheelbrush",name:"휠 브러시 세트",cat:"applibrush",type:"브러시",brand:"몬테카를로",notes:"배럴+페이스",photo:"",uses:15,lifeLimit:0},
       {id:"eq_bucket",name:"디테일 버킷 20L",cat:"etc",type:"버킷",brand:"그릿가드",notes:"그릿가드 포함",photo:"",uses:30,lifeLimit:0}
     ];
     var templates=[
-      {id:"tpl_full",name:"풀 디테일링",steps:[
-        {id:uid(),name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60},
+      {id:"tpl_full",name:"정밀 디테일링 루틴",situation:"detail",steps:[
+        {id:uid(),name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_wheelbrush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60},
         {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80},
         {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30},
         {id:uid(),name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:40},
         {id:uid(),name:"클레이",cat:"clay",chemIds:["ch_clay"],equipIds:[],dilution:"",estMin:20,panel:"외장",tags:["점토"],usedMl:50},
         {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:10,panel:"전체",tags:["건조"],usedMl:0},
-        {id:uid(),name:"광택(컴파운드)",cat:"polish",chemIds:["ch_comp"],equipIds:["eq_da"],dilution:"",estMin:40,panel:"외장",tags:["광택"],usedMl:8},
+        {id:uid(),name:"광택(컴파운드)",cat:"polish",chemIds:["ch_comp"],equipIds:["eq_da","eq_pad_c"],dilution:"",estMin:40,panel:"외장",tags:["광택"],usedMl:8},
         {id:uid(),name:"LSP/물왁스",cat:"lsp",chemIds:["ch_bsd"],equipIds:["eq_spray"],dilution:"1:5",estMin:12,panel:"전체",tags:["발수"],usedMl:20}
       ]},
-      {id:"tpl_quick",name:"빠른 유지관리",steps:[
+      {id:"tpl_quick",name:"급속 세차 루틴",situation:"quick",steps:[
         {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:8,panel:"전체",tags:["프리워시"],usedMl:80},
         {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:15,panel:"외장",tags:["본세척"],usedMl:30},
         {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:8,panel:"전체",tags:["건조"],usedMl:0},
         {id:uid(),name:"QD/유지관리",cat:"lsp",chemIds:["ch_qd"],equipIds:[],dilution:"",estMin:8,panel:"전체",tags:["발수","디테일"],usedMl:15}
+      ]},
+      {id:"tpl_coat",name:"세라믹 코팅 시공",situation:"coating",steps:[
+        {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시"],usedMl:80},
+        {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30},
+        {id:uid(),name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:40},
+        {id:uid(),name:"탈지",cat:"etc",chemIds:[],equipIds:[],dilution:"",estMin:15,panel:"외장",tags:["탈지"],usedMl:0},
+        {id:uid(),name:"세라믹 코팅",cat:"coating",chemIds:["ch_coat"],equipIds:[],dilution:"",estMin:35,panel:"외장",tags:["코팅"],usedMl:3}
+      ]},
+      {id:"tpl_rainy",name:"장마철 빠른 세차",situation:"rainy",steps:[
+        {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:8,panel:"전체",tags:["프리워시"],usedMl:80},
+        {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:12,panel:"외장",tags:["본세척"],usedMl:30},
+        {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel","eq_blow"],dilution:"",estMin:8,panel:"전체",tags:["건조"],usedMl:0},
+        {id:uid(),name:"유리 발수",cat:"glass",chemIds:["ch_glass"],equipIds:[],dilution:"",estMin:10,panel:"유리",tags:["발수"],usedMl:15},
+        {id:uid(),name:"발수 코팅",cat:"lsp",chemIds:["ch_bsd"],equipIds:["eq_spray"],dilution:"1:5",estMin:10,panel:"전체",tags:["발수"],usedMl:20}
+      ]},
+      {id:"tpl_interior",name:"실내 디테일링 루틴",situation:"interior",steps:[
+        {id:uid(),name:"실내 APC 세정",cat:"interior",chemIds:["ch_apc"],equipIds:["eq_brush"],dilution:"1:10",estMin:25,panel:"실내",tags:["디테일"],usedMl:40},
+        {id:uid(),name:"가죽 케어",cat:"interior",chemIds:["ch_leather"],equipIds:["eq_brush"],dilution:"",estMin:20,panel:"실내",tags:["디테일"],usedMl:25},
+        {id:uid(),name:"유리 세정(실내)",cat:"glass",chemIds:["ch_glass"],equipIds:["eq_towel"],dilution:"",estMin:10,panel:"유리",tags:["디테일"],usedMl:20}
       ]}
     ];
-    // a completed session (last week) + an in-progress session (today)
+    // 다양한 옵션 × 다양한 지역 × 다양한 차량
     var sessions=[
-      {id:"s_done1",created:now-86400000*7,title:"7월 풀 디테일링",date:dateOffset(7),vehicleId:"v_modelx",
-        status:"done",runningStepId:null,cost:0,location:"자택 차고",geo:{lat:37.2636,lng:127.0286},
-        beforePhotos:[""],resultPhotos:[""],review:{good:"클레이 후 면이 확실히 매끈해짐. 컴파운드 1스텝으로 스월 대부분 제거.",improve:"철분 제거 시간을 더 길게. 댐웰 부족했음."},
-        steps:[
-          {id:uid(),name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:1020,_startedAt:null,photos:[]},
-          {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80,done:true,actualSec:540,_startedAt:null,photos:[]},
-          {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30,done:true,actualSec:1380,_startedAt:null,photos:[]},
-          {id:uid(),name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:40,done:true,actualSec:900,_startedAt:null,photos:[]},
-          {id:uid(),name:"클레이",cat:"clay",chemIds:["ch_clay"],equipIds:[],dilution:"",estMin:20,panel:"외장",tags:["점토"],usedMl:50,done:true,actualSec:1500,_startedAt:null,photos:[]},
-          {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:10,panel:"전체",tags:["건조"],usedMl:0,done:true,actualSec:600,_startedAt:null,photos:[]},
-          {id:uid(),name:"광택(컴파운드)",cat:"polish",chemIds:["ch_comp"],equipIds:["eq_da"],dilution:"",estMin:40,panel:"외장",tags:["광택"],usedMl:8,done:true,actualSec:2760,_startedAt:null,photos:[]},
-          {id:uid(),name:"LSP/물왁스",cat:"lsp",chemIds:["ch_bsd"],equipIds:["eq_spray"],dilution:"1:5",estMin:12,panel:"전체",tags:["발수"],usedMl:20,done:true,actualSec:660,_startedAt:null,photos:[]}
-        ]},
-      {id:"s_done2",created:now-86400000*3,title:"빠른 유지관리",date:dateOffset(3),vehicleId:"v_gv80",
-        status:"done",runningStepId:null,cost:9000,location:"셀프세차장",geo:null,
-        beforePhotos:[],resultPhotos:[],review:{good:"QD 마감 광 좋음",improve:""},
-        steps:[
-          {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:8,panel:"전체",tags:["프리워시"],usedMl:80,done:true,actualSec:480,_startedAt:null,photos:[]},
-          {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:15,panel:"외장",tags:["본세척"],usedMl:30,done:true,actualSec:960,_startedAt:null,photos:[]},
-          {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:8,panel:"전체",tags:["건조"],usedMl:0,done:true,actualSec:540,_startedAt:null,photos:[]},
-          {id:uid(),name:"QD/유지관리",cat:"lsp",chemIds:["ch_qd"],equipIds:[],dilution:"",estMin:8,panel:"전체",tags:["발수","디테일"],usedMl:15,done:true,actualSec:420,_startedAt:null,photos:[]}
-        ]},
-      {id:"s_active",created:now,title:"오늘 외부 디테일링",date:dateOffset(0),vehicleId:"v_modelx",
+      // 진행 중 (오늘) - 테슬라 풀 디테일링, 자택
+      {id:"s_active",created:now,title:"풀 디테일링",date:dateOffset(0),vehicleId:"v_tesla",
         status:"running",runningStepId:"st_active2",cost:0,location:"자택 차고",geo:{lat:37.2636,lng:127.0286},
         beforePhotos:[""],resultPhotos:[],review:{good:"",improve:""},
         steps:[
-          {id:"st_active1",name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_brush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:840,_startedAt:null,photos:[""]},
+          {id:"st_active1",name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_wheelbrush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:840,_startedAt:null,photos:[]},
           {id:"st_active2",name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80,done:false,actualSec:180,_startedAt:now-120000,photos:[]},
           {id:"st_active3",name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30,done:false,actualSec:0,_startedAt:null,photos:[]},
           {id:"st_active4",name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:40,done:false,actualSec:0,_startedAt:null,photos:[]},
           {id:"st_active5",name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:10,panel:"전체",tags:["건조"],usedMl:0,done:false,actualSec:0,_startedAt:null,photos:[]},
           {id:"st_active6",name:"LSP/물왁스",cat:"lsp",chemIds:["ch_bsd"],equipIds:["eq_spray"],dilution:"1:5",estMin:12,panel:"전체",tags:["발수"],usedMl:20,done:false,actualSec:0,_startedAt:null,photos:[]}
+        ]},
+      // 제네시스 세라믹 코팅 시공 (3일전) - 광교, 전후사진
+      {id:"s_coat",created:now-86400000*3,title:"세라믹 코팅 시공",date:dateOffset(3),vehicleId:"v_gv80",
+        status:"done",runningStepId:null,cost:0,location:"광교 자택",geo:{lat:37.2999,lng:127.0608},
+        beforePhotos:[""],resultPhotos:[""],review:{good:"흙탕물 완전 제거. 코팅 후 발수 비딩 환상적. 9H 경도 체감됨.",improve:"휠 배럴 안쪽 시간 더 필요"},
+        steps:[
+          {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시"],usedMl:90,done:true,actualSec:660,_startedAt:null,photos:[]},
+          {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:35,done:true,actualSec:1320,_startedAt:null,photos:[]},
+          {id:uid(),name:"철분 제거",cat:"iron",chemIds:["ch_iron"],equipIds:["eq_spray"],dilution:"원액",estMin:10,panel:"전체",tags:["철분제거"],usedMl:45,done:true,actualSec:900,_startedAt:null,photos:[]},
+          {id:uid(),name:"탈지",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:15,panel:"외장",tags:["탈지"],usedMl:0,done:true,actualSec:960,_startedAt:null,photos:[]},
+          {id:uid(),name:"세라믹 코팅",cat:"coating",chemIds:["ch_coat"],equipIds:[],dilution:"",estMin:35,panel:"외장",tags:["코팅"],usedMl:3,done:true,actualSec:2400,_startedAt:null,photos:[]}
+        ]},
+      // BMW 유막 제거 + 발수 (5일전) - 셀프세차장, 전후사진
+      {id:"s_glass",created:now-86400000*5,title:"유막 제거 + 유리 발수",date:dateOffset(5),vehicleId:"v_bmw",
+        status:"done",runningStepId:null,cost:12000,location:"인계동 셀프세차장",geo:{lat:37.2854,lng:127.0469},
+        beforePhotos:[""],resultPhotos:[""],review:{good:"앞유리 유막 완전 제거, 비 올 때 시야 확보 굿",improve:"산화세륨 잔여물 닦기 번거로움"},
+        steps:[
+          {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:8,panel:"전체",tags:["프리워시"],usedMl:80,done:true,actualSec:540,_startedAt:null,photos:[]},
+          {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:15,panel:"외장",tags:["본세척"],usedMl:30,done:true,actualSec:960,_startedAt:null,photos:[]},
+          {id:uid(),name:"유막 제거",cat:"glass",chemIds:["ch_oilfilm"],equipIds:[],dilution:"",estMin:15,panel:"유리",tags:["디테일"],usedMl:30,done:true,actualSec:1140,_startedAt:null,photos:[]},
+          {id:uid(),name:"유리 발수코팅",cat:"glass",chemIds:["ch_glass"],equipIds:[],dilution:"",estMin:10,panel:"유리",tags:["발수"],usedMl:15,done:true,actualSec:600,_startedAt:null,photos:[]},
+          {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:8,panel:"전체",tags:["건조"],usedMl:0,done:true,actualSec:480,_startedAt:null,photos:[]}
+        ]},
+      // 골프 풀 디테일링 (8일전) - 동탄, 전후사진
+      {id:"s_golf",created:now-86400000*8,title:"풀 디테일링",date:dateOffset(8),vehicleId:"v_golf",
+        status:"done",runningStepId:null,cost:0,location:"동탄 지하주차장",geo:{lat:37.2007,lng:127.0727},
+        beforePhotos:[""],resultPhotos:[""],review:{good:"블루 컬러 클레이 후 발색 살아남. 광택 1스텝으로 충분.",improve:"다음엔 폴리시까지 2스텝"},
+        steps:[
+          {id:uid(),name:"휠&타이어",cat:"wheel",chemIds:["ch_wheel"],equipIds:["eq_wheelbrush"],dilution:"원액",estMin:15,panel:"휠/타이어",tags:["디테일"],usedMl:60,done:true,actualSec:1020,_startedAt:null,photos:[]},
+          {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:10,panel:"전체",tags:["프리워시","폼"],usedMl:80,done:true,actualSec:600,_startedAt:null,photos:[]},
+          {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:20,panel:"외장",tags:["본세척"],usedMl:30,done:true,actualSec:1260,_startedAt:null,photos:[]},
+          {id:uid(),name:"클레이",cat:"clay",chemIds:["ch_clay"],equipIds:[],dilution:"",estMin:20,panel:"외장",tags:["점토"],usedMl:50,done:true,actualSec:1380,_startedAt:null,photos:[]},
+          {id:uid(),name:"광택(컴파운드)",cat:"polish",chemIds:["ch_comp"],equipIds:["eq_da","eq_pad_c"],dilution:"",estMin:40,panel:"외장",tags:["광택"],usedMl:8,done:true,actualSec:2640,_startedAt:null,photos:[]},
+          {id:uid(),name:"LSP/물왁스",cat:"lsp",chemIds:["ch_bsd"],equipIds:["eq_spray"],dilution:"1:5",estMin:12,panel:"전체",tags:["발수"],usedMl:20,done:true,actualSec:720,_startedAt:null,photos:[]}
+        ]},
+      // 제네시스 실내 디테일링 (12일전) - 자택
+      {id:"s_interior",created:now-86400000*12,title:"실내 디테일링",date:dateOffset(12),vehicleId:"v_gv80",
+        status:"done",runningStepId:null,cost:0,location:"광교 자택",geo:{lat:37.2999,lng:127.0608},
+        beforePhotos:[],resultPhotos:[],review:{good:"가죽 시트 광 복원, APC로 트림 먼지 제거 깔끔",improve:""},
+        steps:[
+          {id:uid(),name:"실내 APC 세정",cat:"interior",chemIds:["ch_apc"],equipIds:["eq_brush"],dilution:"1:10",estMin:25,panel:"실내",tags:["디테일"],usedMl:40,done:true,actualSec:1560,_startedAt:null,photos:[]},
+          {id:uid(),name:"가죽 케어",cat:"interior",chemIds:["ch_leather"],equipIds:["eq_brush"],dilution:"",estMin:20,panel:"실내",tags:["디테일"],usedMl:25,done:true,actualSec:1200,_startedAt:null,photos:[]},
+          {id:uid(),name:"유리 세정(실내)",cat:"glass",chemIds:["ch_glass"],equipIds:["eq_towel"],dilution:"",estMin:10,panel:"유리",tags:["디테일"],usedMl:20,done:true,actualSec:600,_startedAt:null,photos:[]}
+        ]},
+      // BMW 빠른 유지관리 (15일전) - 셀프세차장
+      {id:"s_quick",created:now-86400000*15,title:"빠른 유지관리",date:dateOffset(15),vehicleId:"v_bmw",
+        status:"done",runningStepId:null,cost:8000,location:"인계동 셀프세차장",geo:{lat:37.2854,lng:127.0469},
+        beforePhotos:[],resultPhotos:[],review:{good:"QD 마감 광 좋음, 30분컷",improve:""},
+        steps:[
+          {id:uid(),name:"프리워시",cat:"prewash",chemIds:["ch_snow"],equipIds:["eq_foam"],dilution:"1:10",estMin:8,panel:"전체",tags:["프리워시"],usedMl:80,done:true,actualSec:480,_startedAt:null,photos:[]},
+          {id:uid(),name:"본세차",cat:"shampoo",chemIds:["ch_sham"],equipIds:["eq_mitt"],dilution:"원액",estMin:15,panel:"외장",tags:["본세척"],usedMl:30,done:true,actualSec:900,_startedAt:null,photos:[]},
+          {id:uid(),name:"드라잉",cat:"etc",chemIds:[],equipIds:["eq_towel"],dilution:"",estMin:8,panel:"전체",tags:["건조"],usedMl:0,done:true,actualSec:480,_startedAt:null,photos:[]},
+          {id:uid(),name:"QD/유지관리",cat:"lsp",chemIds:["ch_qd"],equipIds:[],dilution:"",estMin:8,panel:"전체",tags:["발수"],usedMl:15,done:true,actualSec:420,_startedAt:null,photos:[]}
         ]}
     ];
     var ops=[];
@@ -568,6 +644,110 @@ function coatingStatus(c){
   return {daysLeft:daysLeft,expDate:fmt(exp),pct:pct,state:state};
 }
 
+/* =========================================================
+   DERIVED-VALUE MODULE (순수 함수)
+   대시보드가 나중에 읽기만 하는 계층. 모듈이 늘어도 여기 함수만 추가.
+   ========================================================= */
+function daysBetween(dateStr){ // "YYYY-MM-DD" → 오늘로부터 경과 일수
+  if(!dateStr) return null;
+  var d=new Date(dateStr+"T00:00:00"); var now=new Date(); now.setHours(0,0,0,0);
+  return Math.round((now-d)/86400000);
+}
+// 케미컬 잔량 비율(0~100). vol 없으면 null
+function chemRemainPct(c){
+  var vol=c.volMl||0; if(vol<=0) return null;
+  var rem=c.remainMl!=null?c.remainMl:vol;
+  return Math.max(0,Math.min(100,Math.round(rem/vol*100)));
+}
+// 소진 예측: 잔량 ÷ 1회 사용량 = 남은 사용 횟수. defaultMl 없으면 null
+function chemUsesLeft(c){
+  var per=c.defaultMl||0; if(per<=0) return null;
+  var rem=c.remainMl!=null?c.remainMl:(c.volMl||0);
+  return Math.floor(rem/per);
+}
+// 개봉 후 경과/권장기간 상태. c.openedDate(YYYY-MM-DD), c.shelfMonths(권장 개봉후 개월)
+function chemShelfStatus(c){
+  if(!c.openedDate) return null;
+  var used=daysBetween(c.openedDate); // 경과일
+  if(!c.shelfMonths) return {usedDays:used, state:"ok", expDate:null, daysLeft:null};
+  var exp=new Date(c.openedDate+"T00:00:00"); exp.setMonth(exp.getMonth()+c.shelfMonths);
+  var now=new Date(); now.setHours(0,0,0,0);
+  var daysLeft=Math.round((exp-now)/86400000);
+  var state=daysLeft<0?"expired":daysLeft<=30?"soon":"ok";
+  function fmt(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+  return {usedDays:used, daysLeft:daysLeft, expDate:fmt(exp), state:state};
+}
+// 케미컬 종합 상태 등급 → {level, label, color}
+// level: crit(재구매)/warn(주의)/aged(오래됨)/ok
+function chemStatusGrade(c){
+  var pct=chemRemainPct(c);
+  var shelf=chemShelfStatus(c);
+  if(pct!=null && pct<=15) return {level:"crit", label:"재구매", color:"var(--bad)"};
+  if(shelf && shelf.state==="expired") return {level:"crit", label:"기한만료", color:"var(--bad)"};
+  if(pct!=null && pct<=35) return {level:"warn", label:"부족", color:"var(--warn)"};
+  if(shelf && shelf.state==="soon") return {level:"warn", label:"기한임박", color:"var(--warn)"};
+  return {level:"ok", label:"충분", color:"var(--good)"};
+}
+// 장비 수명 상태 → {level,label,color,pct}
+function gearStatusGrade(eq){
+  var lim=eq.lifeLimit||0, u=eq.uses||0;
+  if(lim<=0) return {level:"ok", label:"", color:"var(--good)", pct:0};
+  var pct=Math.round(u/lim*100);
+  if(u>=lim) return {level:"crit", label:"교체 권장", color:"var(--bad)", pct:pct};
+  if(u>=lim*0.8) return {level:"warn", label:"교체 임박", color:"var(--warn)", pct:pct};
+  return {level:"ok", label:"", color:"var(--good)", pct:pct};
+}
+// 차량의 마지막 세차 세션(완료 기준) + 경과일
+function lastWashOf(vehicleId, sessions){
+  var done=sessions.filter(function(s){return s.vehicleId===vehicleId && s.status==="done" && s.date;});
+  if(done.length===0) return null;
+  done.sort(function(a,b){return (b.date||"").localeCompare(a.date||"");});
+  var last=done[0];
+  return {session:last, daysAgo:daysBetween(last.date)};
+}
+// 지출 집계: 케미컬 구매가 기준. {total, byCat:{cat:합계}, byYear:{year:합계}, items:n}
+function spendSummary(chemicals){
+  var total=0, byCat={}, byYear={}, items=0;
+  chemicals.forEach(function(c){
+    var p=c.price||0; if(p<=0) return;
+    total+=p; items++;
+    var k=c.cat||"etc"; byCat[k]=(byCat[k]||0)+p;
+    if(c.boughtDate){ var y=c.boughtDate.slice(0,4); byYear[y]=(byYear[y]||0)+p; }
+  });
+  return {total:total, byCat:byCat, byYear:byYear, items:items};
+}
+
+/* 유지관리 주기 기본값(일). 차량 v.careCycle 로 사용자 커스텀 가능 */
+var CARE_DEFAULTS={ wash:7, wax:14, sealant:30, coating:90, ironRemove:60, glassRepel:60 };
+var CARE_LABELS={ wash:"세차", wax:"왁스", sealant:"실란트", coating:"코팅 재시공", ironRemove:"철분 제거", glassRepel:"유리 발수" };
+function careCycleOf(v, key){
+  if(v && v.careCycle && v.careCycle[key]) return v.careCycle[key];
+  return CARE_DEFAULTS[key];
+}
+// 오염도/추천: 마지막 세차로부터 경과일 → 오염도 등급 + 추천 액션
+function washRecommend(vehicle, sessions){
+  var last=lastWashOf(vehicle.id, sessions);
+  var washCycle=careCycleOf(vehicle,"wash");
+  var daysAgo=last?last.daysAgo:null;
+  // 오염도 등급
+  var soil, soilColor;
+  if(daysAgo==null){ soil="기록 없음"; soilColor="var(--txt3)"; }
+  else if(daysAgo<=Math.round(washCycle*0.6)){ soil="낮음"; soilColor="var(--good)"; }
+  else if(daysAgo<=washCycle){ soil="보통"; soilColor="var(--warn)"; }
+  else { soil="높음"; soilColor="var(--bad)"; }
+  // 추천 레시피 상황키: 경과 많으면 정밀, 적당하면 데일리, 비 예보는 호출측에서 가산
+  var sitKey = (daysAgo!=null && daysAgo>washCycle*1.5) ? "detail" : (daysAgo!=null && daysAgo<=washCycle*0.6 ? "quick" : "daily");
+  return {daysAgo:daysAgo, soil:soil, soilColor:soilColor, overdue:(daysAgo!=null&&daysAgo>washCycle), washCycle:washCycle, sitKey:sitKey, lastSession:last?last.session:null};
+}
+// 차량의 유지관리 항목별 D-day (코팅은 coatingStatus, 나머지는 careCycle 기반 추정은 향후 세션 태그 연동)
+function carePanel(vehicle, sessions){
+  var rows=[];
+  var cs=coatingStatus(vehicle.coating);
+  if(cs) rows.push({key:"coating", label:(vehicle.coating.type||"코팅"), daysLeft:cs.daysLeft, state:cs.state});
+  return rows;
+}
+/* ========================================================= */
+
 /* ===== weather (Open-Meteo, no key, CORS ok) ===== */
 function wmoIcon(code){
   if(code===0) return "☀️";
@@ -628,7 +808,7 @@ function getWeather(force){
 
 /* ===================================================== */
 function App(){
-  var tab=useState("sessions"),T=tab[0],setT=tab[1];
+  var tab=useState("home"),T=tab[0],setT=tab[1];
   var ready=useState(false),R=ready[0],setR=ready[1];
   var veh=useState([]),chem=useState([]),equip=useState([]),sess=useState([]),tpl=useState([]);
   var openId=useState(null);
@@ -660,6 +840,7 @@ function App(){
   return h("div",null,
     h(Header,{T:T,onSettings:function(){setShowSettings(true);}}),
     h("main",null,
+      T==="home"&&h(Dashboard,{ctx:ctx}),
       T==="sessions"&&h(SessionsTab,{ctx:ctx}),
       T==="garage"&&h(GarageTab,{ctx:ctx}),
       T==="chem"&&h(ChemTab,{ctx:ctx}),
@@ -671,17 +852,102 @@ function App(){
   );
 }
 function Header(props){
-  var t={sessions:"세차 기록",garage:"내 차고",chem:"케미컬",gear:"장비",stats:"통계"};
+  var t={home:"세차 플래너",sessions:"세차 기록",garage:"내 차고",chem:"케미컬",gear:"장비",stats:"통계"};
   return h("header",null,
     h("h1",null,t[props.T]||"세차 플래너"," ",h("span",{className:"dot"},"·")),
     h("button",{className:"hbtn",onClick:props.onSettings,title:"설정·백업"},"⚙"));
 }
 function BottomNav(props){
-  var items=[["sessions","🧽","기록"],["garage","🚗","차고"],["chem","🧴","케미컬"],["gear","🛠","장비"],["stats","📊","통계"]];
+  var items=[["home","🏠","홈"],["sessions","🧽","기록"],["garage","🚗","차고"],["chem","🧴","케미컬"],["gear","🛠","장비"],["stats","📊","통계"]];
   return h("nav",null,items.map(function(it){
     return h("button",{key:it[0],className:props.T===it[0]?"on":"",onClick:function(){props.setT(it[0]);}},
       h("span",{className:"ic"},it[1]),h("span",null,it[2]));
   }));
+}
+
+/* ---------------- DASHBOARD (집계 계층 · 파생함수만 읽음) ---------------- */
+function Dashboard(props){
+  var ctx=props.ctx;
+  // 빈 상태
+  if(ctx.veh.length===0 && ctx.sess.length===0)
+    return h("div",null,
+      h("div",{className:"empty"},h("div",{className:"e"},"🏠"),
+        h("div",null,"환영합니다!"),
+        h("div",{className:"tiny",style:{marginTop:6}},"차고에 차량을 등록하고 첫 세차를 계획해보세요")),
+      h("button",{className:"btn",style:{marginTop:8},onClick:function(){ctx.setT("garage");}},"🚗 차량 등록하러 가기"));
+
+  // 경고 요약 (파생함수 읽기)
+  var chemCrit=ctx.chem.filter(function(c){return chemStatusGrade(c).level==="crit";});
+  var chemWarn=ctx.chem.filter(function(c){return chemStatusGrade(c).level==="warn";});
+  var gearCrit=ctx.equip.filter(function(e){return gearStatusGrade(e).level==="crit";});
+  var gearWarn=ctx.equip.filter(function(e){return gearStatusGrade(e).level==="warn";});
+  var spend=spendSummary(ctx.chem);
+  var nowYear=String(new Date().getFullYear());
+
+  return h("div",null,
+    // ===== 차량별 카드 =====
+    ctx.veh.map(function(v){
+      var rec=washRecommend(v, ctx.sess);
+      var cs=coatingStatus(v.coating);
+      var sit=recipeSituation(rec.sitKey);
+      var recTpl=ctx.tpl.find(function(t){return t.situation===rec.sitKey;}) || ctx.tpl[0];
+      function startWash(){
+        var steps=(recTpl?recTpl.steps:[]).map(function(x){
+          return {id:uid(),name:x.name,cat:x.cat||"",chemIds:(x.chemIds||[]).slice(),equipIds:(x.equipIds||[]).slice(),dilution:x.dilution||"",tools:"",estMin:x.estMin||0,panel:x.panel||"",tags:(x.tags||[]).slice(),usedMl:x.usedMl||0,done:false,actualSec:0,_startedAt:null,photos:[]};
+        });
+        var ns={id:uid(),created:Date.now(),title:(recTpl?recTpl.name:"세차"),date:todayStr(),vehicleId:v.id,status:"planned",runningStepId:null,cost:0,location:"",geo:null,beforePhotos:[],resultPhotos:[],review:{good:"",improve:""},steps:steps};
+        dbPut("sessions",ns).then(ctx.reload).then(function(){ctx.setOpen(ns.id);});
+      }
+      var headerEl=h("div",{className:"row",style:{padding:"14px 14px 10px"}},
+        v.photo?h("img",{className:"thumb",src:v.photo}):h("div",{className:"thumb"},"🚗"),
+        h("div",{className:"grow"},
+          h("div",{style:{fontWeight:800,fontSize:18}},v.name),
+          h("div",{className:"muted"},v.model||"—"),
+          h("div",{className:"row",style:{gap:6,marginTop:6,alignItems:"center"}},
+            h("span",{className:"tiny"},"마지막 세차"),
+            h("span",{style:{fontWeight:800,color:rec.soilColor}},rec.daysAgo==null?"기록 없음":(rec.daysAgo+"일 전")),
+            h("span",{className:"chip sm",style:{marginLeft:4,color:rec.soilColor,borderColor:rec.soilColor}},"오염도 "+rec.soil))));
+      var coatEl=cs?h("div",{style:{padding:"0 14px 10px"}},
+        h("div",{className:"row between"},
+          h("span",{className:"tiny"},"🛡 "+v.coating.type),
+          h("span",{className:"tiny",style:{fontWeight:700,color:cs.state==="expired"?"var(--bad)":cs.state==="soon"?"var(--warn)":"var(--good)"}},cs.state==="expired"?("만료 "+(-cs.daysLeft)+"일 경과"):("D-"+cs.daysLeft))),
+        h("div",{className:"gauge "+(cs.state==="expired"?"crit":cs.state==="soon"?"low":""),style:{marginTop:5}},h("div",{style:{width:cs.pct+"%"}}))):null;
+      var recoEl=h("div",{style:{padding:"12px 14px",background:"var(--surface2)",borderTop:"1px solid var(--line)"}},
+        h("div",{className:"row between",style:{alignItems:"center"}},
+          h("div",null,
+            h("div",{className:"tiny"},"오늘 추천"),
+            h("div",{style:{fontWeight:700,marginTop:2}},(sit?sit.icon+" ":"")+(recTpl?recTpl.name:"세차")+(rec.overdue?" · 권장 주기 초과":""))),
+          h("button",{className:"btn",style:{width:"auto",padding:"10px 18px",flex:"none"},onClick:startWash},"세차 시작")));
+      return h("div",{key:v.id,className:"card",style:{padding:0,overflow:"hidden"}}, headerEl, coatEl, recoEl);
+    }),
+
+    // ===== 통합 경고 요약 =====
+    (chemCrit.length+chemWarn.length+gearCrit.length+gearWarn.length>0)&&h("div",{className:"card"},
+      h("div",{className:"sectit"},"⚠ 관리 알림"),
+      chemCrit.length>0&&h("div",{className:"row between tap",style:{padding:"6px 0"},onClick:function(){ctx.setT("chem");}},
+        h("span",null,h("span",{className:"statusdot",style:{background:"var(--bad)",marginRight:7}}),"재구매·기한만료 케미컬"),
+        h("span",{style:{fontWeight:700,color:"var(--bad)"}},chemCrit.length+"개")),
+      chemWarn.length>0&&h("div",{className:"row between tap",style:{padding:"6px 0"},onClick:function(){ctx.setT("chem");}},
+        h("span",null,h("span",{className:"statusdot",style:{background:"var(--warn)",marginRight:7}}),"잔량 부족·기한 임박"),
+        h("span",{style:{fontWeight:700,color:"var(--warn)"}},chemWarn.length+"개")),
+      gearCrit.length>0&&h("div",{className:"row between tap",style:{padding:"6px 0"},onClick:function(){ctx.setT("gear");}},
+        h("span",null,h("span",{className:"statusdot",style:{background:"var(--bad)",marginRight:7}}),"교체 권장 장비"),
+        h("span",{style:{fontWeight:700,color:"var(--bad)"}},gearCrit.length+"개")),
+      gearWarn.length>0&&h("div",{className:"row between tap",style:{padding:"6px 0"},onClick:function(){ctx.setT("gear");}},
+        h("span",null,h("span",{className:"statusdot",style:{background:"var(--warn)",marginRight:7}}),"교체 임박 장비"),
+        h("span",{style:{fontWeight:700,color:"var(--warn)"}},gearWarn.length+"개"))),
+
+    // ===== 지출 요약 =====
+    spend.items>0&&h("div",{className:"card tap",onClick:function(){ctx.setT("stats");}},
+      h("div",{className:"row between"},
+        h("div",null,
+          h("div",{className:"sectit",style:{margin:0}},"💸 제품 지출"),
+          h("div",{className:"tiny",style:{marginTop:2}},(spend.byYear[nowYear]?nowYear+"년 "+won(spend.byYear[nowYear]):"누적 "+won(spend.total)))),
+        h("div",{style:{fontWeight:800,fontSize:20,color:"var(--accent)"}},won(spend.total)))),
+
+    // ===== 빠른 액션 =====
+    h("button",{className:"btn ghost",style:{marginTop:4},onClick:function(){ctx.setT("sessions");}},"📋 전체 세차 기록 보기"),
+    h("div",{style:{height:20}}));
 }
 
 /* ---------------- SESSIONS LIST ---------------- */
@@ -717,10 +983,13 @@ function SessionsTab(props){
   return h("div",null,
     h("div",{className:"seg",style:{marginBottom:14}},
       h("button",{className:view[0]==="list"?"on":"",onClick:function(){view[1]("list");}},"목록"),
-      h("button",{className:view[0]==="cal"?"on":"",onClick:function(){view[1]("cal");}},"캘린더")),
+      h("button",{className:view[0]==="cal"?"on":"",onClick:function(){view[1]("cal");}},"캘린더"),
+      h("button",{className:view[0]==="map"?"on":"",onClick:function(){view[1]("map");}},"지도")),
     view[0]==="list"
       ? ctx.sess.map(function(s){return sessionCard(s,ctx);})
-      : h(CalendarView,{ctx:ctx}),
+      : view[0]==="cal"
+        ? h(CalendarView,{ctx:ctx})
+        : h(SessionsMap,{ctx:ctx}),
     h("button",{className:"fab",onClick:function(){newOpen[1](true);}},"+"),
     newOpen[0]&&h(NewSession,{ctx:ctx,close:function(){newOpen[1](false);}}));
 }
@@ -850,10 +1119,13 @@ function NewSession(props){
     ctx.veh.length===0?h("div",{key:6,className:"tiny",style:{padding:"4px 2px"}},"차고에 차량을 먼저 등록하세요 (없어도 진행 가능)")
       :h("select",{key:6,className:"inp",value:vid[0],onChange:function(e){vid[1](e.target.value);}},
         ctx.veh.map(function(v){return h("option",{key:v.id,value:v.id},v.name);})),
-    ctx.tpl.length>0&&h("label",{className:"fl",key:7},"템플릿에서 불러오기 (선택)"),
-    ctx.tpl.length>0&&h("select",{key:8,className:"inp",value:fromTpl[0],onChange:function(e){fromTpl[1](e.target.value);}},
-      h("option",{value:""},"빈 세션으로 시작"),
-      ctx.tpl.map(function(t){return h("option",{key:t.id,value:t.id},t.name+" ("+t.steps.length+"단계)");})),
+    ctx.tpl.length>0&&h("label",{className:"fl",key:7},"내 레시피에서 불러오기 (선택)"),
+    ctx.tpl.length>0&&h("div",{key:8,className:"chips"},
+      h("span",{className:"chip"+(fromTpl[0]===""?" on":""),onClick:function(){fromTpl[1]("");}},"빈 세션"),
+      ctx.tpl.map(function(t){
+        var sit=recipeSituation(t.situation);
+        return h("span",{key:t.id,className:"chip"+(fromTpl[0]===t.id?" on":""),onClick:function(){fromTpl[1](t.id);}},
+          (sit?sit.icon+" ":"")+t.name+" ("+t.steps.length+")");})),
     h("div",{key:9,style:{height:18}}),
     h("button",{key:10,className:"btn",onClick:create},"세션 만들기")
   ]});
@@ -866,6 +1138,7 @@ function SessionRun(props){
   var editStep=useState(null);
   var pickPreset=useState(false);
   var showReport=useState(false);
+  var tplSave=useState(false);
 
   useEffect(function(){
     var iv=setInterval(function(){
@@ -952,13 +1225,12 @@ function SessionRun(props){
   function delStep(id){save(Object.assign({},s,{steps:s.steps.filter(function(x){return x.id!==id;})}));}
   function delSession(){if(confirm("이 세션을 삭제할까요?"))dbDel("sessions",s.id).then(ctx.reload).then(function(){ctx.setOpen(null);});}
 
-  function saveAsTemplate(){
-    var name=prompt("템플릿 이름",s.title);if(!name)return;
-    var t={id:uid(),name:name,steps:s.steps.map(function(x){
+  function doSaveTemplate(name,situation){
+    var t={id:uid(),name:name,situation:situation||"",steps:s.steps.map(function(x){
       return {id:uid(),name:x.name,cat:x.cat||"",chemIds:x.chemIds||[],equipIds:x.equipIds||[],
         dilution:x.dilution||"",estMin:x.estMin||0,panel:x.panel||"",tags:x.tags||[],usedMl:x.usedMl||0};
     })};
-    dbPut("templates",t).then(ctx.reload).then(function(){alert("템플릿으로 저장됐어요");});
+    dbPut("templates",t).then(ctx.reload).then(function(){tplSave[1](false);alert("내 레시피로 저장됐어요");});
   }
 
   function completeSession(){
@@ -1009,7 +1281,7 @@ function SessionRun(props){
     h("header",null,
       h("button",{className:"hbtn",onClick:function(){if(s.runningStepId)pauseAuto();ctx.setOpen(null);}},"‹"),
       h("h1",{className:"ellip"},s.title),
-      h("button",{className:"hbtn",onClick:saveAsTemplate,title:"템플릿 저장"},"📋")),
+      h("button",{className:"hbtn",onClick:function(){tplSave[1](true);},title:"내 레시피로 저장"},"📋")),
     h("main",null,
       h("div",{className:"row",style:{gap:8,marginBottom:12}},
         h("div",{className:"statbox"},h("div",{className:"n"},doneCt+"/"+s.steps.length),h("div",{className:"l"},"단계")),
@@ -1075,7 +1347,30 @@ function SessionRun(props){
         var eq=p.eq?ctx.equip.find(function(e){return e.type===p.eq;}):null;
         editStep[1]({_new:true,id:uid(),name:p.n,cat:p.cat,chemIds:chem?[chem.id]:[],
           equipIds:eq?[eq.id]:[],dilution:"",tools:"",estMin:p.est||0,panel:"",tags:(p.tags||[]).slice(),
-          usedMl:chem&&chem.defaultMl?chem.defaultMl:0,done:false,actualSec:0,_startedAt:null});}}));
+          usedMl:chem&&chem.defaultMl?chem.defaultMl:0,done:false,actualSec:0,_startedAt:null});}}),
+    tplSave[0]&&h(TemplateSaveSheet,{defaultName:s.title,stepCount:s.steps.length,
+      close:function(){tplSave[1](false);},onSave:doSaveTemplate}));
+}
+
+/* 레시피 저장 시트: 이름 + 상황 선택 */
+function TemplateSaveSheet(props){
+  var name=useState(props.defaultName||""), sit=useState("");
+  return h(Sheet,{close:props.close,title:"내 레시피로 저장",children:[
+    h("div",{key:"h",className:"tiny",style:{marginBottom:10}},"현재 "+props.stepCount+"단계 구성을 레시피로 저장해요. 다음 세차 때 칩 하나로 불러올 수 있어요."),
+    h("label",{className:"fl",key:1},"레시피 이름"),
+    h("input",{key:2,className:"inp",placeholder:"예: 장마철 빠른 세차",value:name[0],onChange:function(e){name[1](e.target.value);}}),
+    h("label",{className:"fl",key:3},"상황 (선택 시 이름 자동 추천)"),
+    h("div",{key:4,className:"chips"},RECIPE_SITUATIONS.map(function(r){
+      return h("span",{key:r.k,className:"chip"+(sit[0]===r.k?" on":""),onClick:function(){
+        sit[1](sit[0]===r.k?"":r.k);
+        if(sit[0]!==r.k && (!name[0]||name[0]===props.defaultName)) name[1](r.n+" 루틴");
+      }},r.icon+" "+r.n);})),
+    h("div",{key:5,style:{height:18}}),
+    h("button",{key:6,className:"btn",onClick:function(){
+      if(!name[0].trim()){alert("레시피 이름을 입력하세요");return;}
+      props.onSave(name[0].trim(),sit[0]);
+    }},"레시피 저장")
+  ]});
 }
 
 /* ---------------- STEP CARD ---------------- */
@@ -1446,22 +1741,28 @@ function ChemTab(props){
         byCat[cat.k].map(function(c){
           var vol=c.volMl||0,rem=c.remainMl!=null?c.remainMl:vol,pct=vol>0?Math.round(rem/vol*100):0;
           var gc=pct<=15?"crit":pct<=35?"low":"";
+          var grade=chemStatusGrade(c), usesLeft=chemUsesLeft(c), shelf=chemShelfStatus(c);
           return h("div",{key:c.id,className:"card tap",onClick:function(){edit[1](c);}},
             h("div",{className:"row"},
               c.photo?h("img",{className:"thumb",src:c.photo}):h("div",{className:"thumb"},"🧴"),
               h("div",{className:"grow"},
-                h("div",{style:{fontWeight:700,fontSize:16}},c.name,c.subtype&&h("span",{className:"chip sm",style:{marginLeft:7}},c.subtype),
-                  vol>0&&pct<=15&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(255,93,108,.15)",borderColor:"rgba(255,93,108,.4)",color:"var(--bad)"}},"보충 필요")),
+                h("div",{className:"row between"},
+                  h("div",{style:{fontWeight:700,fontSize:16}},c.name,c.subtype&&h("span",{className:"chip sm",style:{marginLeft:7}},c.subtype)),
+                  h("div",{style:{flex:"none",display:"flex",alignItems:"center",gap:4}},
+                    h("span",{className:"statusdot",style:{background:grade.color}}),
+                    h("span",{className:"tiny",style:{color:grade.color}},grade.label))),
                 h("div",{className:"muted"},c.brand||"—"),
                 vol>0&&h("div",null,
                   h("div",{className:"row between",style:{marginTop:5}},
-                    h("span",{className:"tiny"},rem+" / "+vol+"ml"),
+                    h("span",{className:"tiny"},rem+" / "+vol+"ml"+(usesLeft!=null?(" · 약 "+usesLeft+"회"):"")),
                     h("span",{className:"tiny",style:{color:gc==="crit"?"var(--bad)":gc==="low"?"var(--warn)":"var(--txt3)"}},pct+"%")),
-                  h("div",{className:"gauge "+gc},h("div",{style:{width:pct+"%"}})))),
+                  h("div",{className:"gauge "+gc},h("div",{style:{width:pct+"%"}}))),
+                shelf&&h("div",{className:"tiny",style:{marginTop:4,color:shelf.state==="expired"?"var(--bad)":shelf.state==="soon"?"var(--warn)":"var(--txt3)"}},
+                  "🗓 개봉 "+shelf.usedDays+"일"+(shelf.expDate?(shelf.state==="expired"?" · 기한만료":(" · D-"+shelf.daysLeft)):""))),
               vol>0&&h(Bottle,{pct:pct,gc:gc})));
         }));
     }),
-    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",brand:"",cat:"",subtype:"",notes:"",photo:"",volMl:0,remainMl:0,defaultMl:0});}},"+"),
+    h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",brand:"",cat:"",subtype:"",notes:"",photo:"",volMl:0,remainMl:0,defaultMl:0,openedDate:"",shelfMonths:0,boughtDate:"",price:0});}},"+"),
     edit[0]&&h(ChemEditor,{c:edit[0],ctx:ctx,close:function(){edit[1](null);}}),
     calc[0]&&h(DilutionCalc,{close:function(){calc[1](false);}}));
 }
@@ -1470,17 +1771,23 @@ function ChemEditor(props){
   var name=useState(c0.name),brand=useState(c0.brand),cat=useState(c0.cat||""),subtype=useState(c0.subtype||"");
   var notes=useState(c0.notes),photo=useState(c0.photo);
   var vol=useState(c0.volMl||0),remain=useState(c0.remainMl!=null?c0.remainMl:(c0.volMl||0)),defMl=useState(c0.defaultMl||0);
+  var openedDate=useState(c0.openedDate||""),shelfMonths=useState(c0.shelfMonths||0);
+  var boughtDate=useState(c0.boughtDate||""),price=useState(c0.price||0);
   var subs=catSubs(cat[0]);
   function save(){
     if(!name[0].trim()){alert("케미컬 이름을 입력하세요");return;}
     dbPut("chemicals",{id:c0.id,name:name[0].trim(),brand:brand[0],cat:cat[0],subtype:subtype[0],notes:notes[0],photo:photo[0],
-      volMl:parseInt(vol[0])||0,remainMl:parseInt(remain[0])||0,defaultMl:parseInt(defMl[0])||0}).then(ctx.reload).then(props.close);
+      volMl:parseInt(vol[0])||0,remainMl:parseInt(remain[0])||0,defaultMl:parseInt(defMl[0])||0,
+      openedDate:openedDate[0]||"",shelfMonths:parseInt(shelfMonths[0])||0,
+      boughtDate:boughtDate[0]||"",price:parseInt(price[0])||0}).then(ctx.reload).then(props.close);
   }
   function imgSearch(){
     if(!name[0].trim()){alert("먼저 제품명을 입력하세요");return;}
     var q=encodeURIComponent((brand[0]?brand[0]+" ":"")+name[0]+" detailing");
     window.open("https://www.google.com/search?tbm=isch&q="+q,"_blank");
   }
+  // 소진 예측 미리보기
+  var usesLeft=(parseInt(defMl[0])>0)?Math.floor((parseInt(remain[0])||0)/parseInt(defMl[0])):null;
   return h(Sheet,{close:props.close,title:c0._new?"케미컬 등록":"케미컬 편집",children:[
     h("button",{key:"s",className:"btn ghost sm",style:{width:"100%",marginBottom:8},onClick:imgSearch},"🔍 구글 이미지에서 제품 찾기"),
     h(PhotoInput,{key:"pi",photo:photo[0],onChange:function(d){photo[1](d);}}),
@@ -1505,6 +1812,27 @@ function ChemEditor(props){
         h("input",{className:"inp",type:"number",inputMode:"numeric",value:remain[0]||"",onChange:function(e){remain[1](e.target.value);}}))),
     h("label",{className:"fl",key:10},"1회 기본 사용량(ml) · 스텝에 자동 채움"),
     h("input",{key:11,className:"inp",type:"number",inputMode:"numeric",placeholder:"예: 20",value:defMl[0]||"",onChange:function(e){defMl[1](e.target.value);}}),
+    usesLeft!=null&&h("div",{key:"ul",className:"tiny",style:{marginTop:4,color:usesLeft<=2?"var(--bad)":"var(--accent)"}},
+      "💧 현재 잔량으로 약 "+usesLeft+"회 사용 가능"),
+
+    h("div",{key:"odiv",className:"divider"}),
+    h("div",{key:"otit",className:"sectit"},"🗓 개봉·구매 관리 (선택)"),
+    h("div",{key:"orow",className:"row",style:{gap:8}},
+      h("div",{className:"grow"},h("label",{className:"fl"},"개봉일"),
+        h("input",{className:"inp",type:"date",value:openedDate[0],onChange:function(e){openedDate[1](e.target.value);}})),
+      h("div",{style:{width:130}},h("label",{className:"fl"},"권장기간(개월)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",placeholder:"예: 24",value:shelfMonths[0]||"",onChange:function(e){shelfMonths[1](e.target.value);}}))),
+    (function(){
+      var sh=openedDate[0]?chemShelfStatus({openedDate:openedDate[0],shelfMonths:parseInt(shelfMonths[0])||0}):null;
+      if(!sh) return null;
+      return h("div",{key:"shp",className:"tiny",style:{marginTop:6,color:sh.state==="expired"?"var(--bad)":sh.state==="soon"?"var(--warn)":"var(--txt2)"}},
+        "개봉 후 "+sh.usedDays+"일 경과"+(sh.expDate?(" · 권장기한 "+sh.expDate+(sh.state==="expired"?" (만료)":sh.daysLeft!=null?(" (D-"+sh.daysLeft+")"):"")):""));
+    })(),
+    h("div",{key:"brow",className:"row",style:{gap:8,marginTop:8}},
+      h("div",{className:"grow"},h("label",{className:"fl"},"구매일"),
+        h("input",{className:"inp",type:"date",value:boughtDate[0],onChange:function(e){boughtDate[1](e.target.value);}})),
+      h("div",{className:"grow"},h("label",{className:"fl"},"구매가(원)"),
+        h("input",{className:"inp",type:"number",inputMode:"numeric",placeholder:"예: 25000",value:price[0]||"",onChange:function(e){price[1](e.target.value);}}))),
 
     h("label",{className:"fl",key:12},"메모"),
     h("textarea",{key:13,className:"inp",placeholder:"예: 기본 1:10, 휠은 1:4",value:notes[0],onChange:function(e){notes[1](e.target.value);}}),
@@ -1520,10 +1848,12 @@ function GearTab(props){
   function gearCard(eq){
     var lim=eq.lifeLimit||0,u=eq.uses||0,pct=lim>0?Math.round(u/lim*100):0;
     var warn=lim>0&&u>=lim, near=lim>0&&!warn&&u>=lim*0.8;
+    var grade=gearStatusGrade(eq);
     return h("div",{key:eq.id,className:"card tap",onClick:function(){edit[1](eq);}},
       h("div",{className:"row"},
         eq.photo?h("img",{className:"thumb",src:eq.photo}):h("div",{className:"thumb"},"🛠"),
         h("div",{className:"grow"},h("div",{style:{fontWeight:700,fontSize:16}},eq.name,
+          lim>0&&h("span",{className:"statusdot",style:{background:grade.color,marginLeft:7}}),
           warn&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(255,93,108,.15)",borderColor:"rgba(255,93,108,.4)",color:"var(--bad)"}},"교체 권장"),
           near&&h("span",{className:"chip sm",style:{marginLeft:7,background:"rgba(245,185,69,.13)",borderColor:"rgba(245,185,69,.35)",color:"var(--warn)"}},"교체 임박")),
           h("div",{className:"muted"},[eq.brand].filter(Boolean).join(" · ")||"—"),
@@ -1682,13 +2012,32 @@ function StatsTab(props){
   ctx.sess.forEach(function(s){s.steps.forEach(function(x){(x.chemIds||[]).forEach(function(id){chemUse[id]=(chemUse[id]||0)+1;});});});
   var chemRows=Object.keys(chemUse).map(function(id){var c=ctx.chem.find(function(x){return x.id===id;});return {name:c?c.name:"?",n:chemUse[id]};}).sort(function(a,b){return b.n-a.n;}).slice(0,8);
   var lowChem=ctx.chem.filter(function(c){return (c.volMl||0)>0 && (c.remainMl!=null?c.remainMl:c.volMl)/c.volMl<=0.2;});
+  var spend=spendSummary(ctx.chem);
+  var catNameOf=function(k){var c=CATS.find(function(x){return x.k===k;});return c?c.n:"기타";};
+  var spendCatRows=Object.keys(spend.byCat).map(function(k){return {k:k,n:spend.byCat[k]};}).sort(function(a,b){return b.n-a.n;});
+  var spendYearRows=Object.keys(spend.byYear).map(function(y){return {y:y,n:spend.byYear[y]};}).sort(function(a,b){return b.y.localeCompare(a.y);});
 
   if(ctx.sess.length===0&&ctx.chem.length===0) return h("div",{className:"empty"},h("div",{className:"e"},"📊"),"세션이 쌓이면 통계가 보여요");
   return h("div",null,
     h("div",{className:"row",style:{gap:8,marginBottom:14}},
       h("div",{className:"statbox"},h("div",{className:"n"},ctx.sess.length),h("div",{className:"l"},"총 세션")),
       h("div",{className:"statbox"},h("div",{className:"n"},Math.round(totalTime/3600*10)/10+"h"),h("div",{className:"l"},"총 시간")),
-      h("div",{className:"statbox"},h("div",{className:"n",style:{fontSize:16}},won(totalCost)),h("div",{className:"l"},"총 비용"))),
+      h("div",{className:"statbox"},h("div",{className:"n",style:{fontSize:16}},won(totalCost)),h("div",{className:"l"},"현장 비용"))),
+
+    spend.items>0&&h("div",{className:"card"},
+      h("div",{className:"row between",style:{marginBottom:4}},
+        h("div",{className:"sectit",style:{margin:0}},"💸 제품 구매 지출"),
+        h("div",{style:{fontWeight:800,fontSize:18,color:"var(--accent)"}},won(spend.total))),
+      h("div",{className:"tiny",style:{marginBottom:10}},"구매가를 입력한 케미컬 "+spend.items+"개 합산"),
+      spendCatRows.map(function(r){var max=spendCatRows[0].n;
+        return h("div",{key:r.k,style:{marginBottom:9}},
+          h("div",{className:"row between"},h("span",null,catNameOf(r.k)),
+            h("span",{className:"muted",style:{fontWeight:700}},won(r.n))),
+          h("div",{style:{height:6,background:"var(--surface2)",borderRadius:3,marginTop:5,overflow:"hidden"}},
+            h("div",{style:{height:"100%",width:(r.n/max*100)+"%",background:"var(--grad)"}})));}),
+      spendYearRows.length>1&&h("div",{style:{marginTop:10,borderTop:"1px solid var(--line)",paddingTop:10}},
+        spendYearRows.map(function(r){return h("div",{key:r.y,className:"row between",style:{padding:"3px 0"}},
+          h("span",{className:"muted"},r.y+"년"),h("span",{style:{fontWeight:700}},won(r.n)));}))),
 
     lowChem.length>0&&h("div",{className:"card",style:{borderColor:"var(--warn)"}},
       h("div",{className:"sectit",style:{color:"var(--warn)"}},"⚠ 잔량 부족 케미컬"),
@@ -1896,6 +2245,65 @@ function LeafletMap(props){ // props: lat, lng, height, interactive
 
   if(failed[0]) return h("div",{className:"tiny",style:{padding:"8px 0"}},"지도를 불러올 수 없어요 · 좌표 "+props.lat.toFixed(5)+", "+props.lng.toFixed(5));
   return h("div",{ref:ref,style:{width:"100%",height:(props.height||180)+"px",borderRadius:12,overflow:"hidden",border:"1px solid var(--line)"}});
+}
+
+/* ---------------- SESSIONS MAP (구글포토식 지도 기록) ---------------- */
+function SessionsMap(props){
+  var ctx=props.ctx;
+  var ref=useRef(null), mapRef=useRef(null), failed=useState(false);
+  var geoSessions=ctx.sess.filter(function(s){return s.geo&&s.geo.lat&&s.geo.lng;});
+
+  useEffect(function(){
+    if(typeof L==="undefined"){ failed[1](true); return; }
+    if(!ref.current||mapRef.current||geoSessions.length===0) return;
+    try{
+      var map=L.map(ref.current,{attributionControl:false,scrollWheelZoom:true});
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
+
+      var statusColor=function(st){return st==="done"?"#4ade80":st==="running"?"#22d3ee":"#b14dff";};
+      var makeIcon=function(col){return L.divIcon({className:"",iconSize:[22,22],iconAnchor:[11,11],
+        html:'<div style="width:18px;height:18px;border-radius:50%;background:'+col+';border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.5)"></div>'});};
+
+      var layer;
+      if(L.markerClusterGroup){
+        layer=L.markerClusterGroup({maxClusterRadius:40,spiderfyOnMaxZoom:true,showCoverageOnHover:false});
+      }else{ layer=L.layerGroup(); }
+
+      var bounds=[];
+      geoSessions.forEach(function(s){
+        var ll=[s.geo.lat,s.geo.lng]; bounds.push(ll);
+        var v=ctx.veh.find(function(x){return x.id===s.vehicleId;});
+        var m=L.marker(ll,{icon:makeIcon(statusColor(s.status))});
+        var stTxt=s.status==="done"?"완료":s.status==="running"?"진행 중":"계획";
+        var html='<div style="min-width:150px"><div style="font-weight:700;font-size:14px;margin-bottom:3px">'+
+          (s.title||"세차 세션")+'</div><div style="font-size:12px;color:#555">'+s.date+' · '+stTxt+
+          (v?' · '+v.name:'')+'</div><button id="go_'+s.id+'" style="margin-top:8px;width:100%;padding:7px;border:0;border-radius:8px;background:linear-gradient(120deg,#22d3ee,#5b8cff);color:#fff;font-weight:700;font-size:13px">기록 상세 보기</button></div>';
+        m.bindPopup(html);
+        m.on("popupopen",function(){
+          var btn=document.getElementById("go_"+s.id);
+          if(btn) btn.onclick=function(){ ctx.setOpen(s.id); };
+        });
+        layer.addLayer(m);
+      });
+      map.addLayer(layer);
+      if(bounds.length===1){ map.setView(bounds[0],14); }
+      else { map.fitBounds(bounds,{padding:[40,40],maxZoom:15}); }
+      mapRef.current=map;
+      setTimeout(function(){ try{map.invalidateSize();}catch(e){} },200);
+    }catch(e){ failed[1](true); }
+    return function(){ if(mapRef.current){ try{mapRef.current.remove();}catch(e){} mapRef.current=null; } };
+  },[geoSessions.length]);
+
+  if(geoSessions.length===0)
+    return h("div",{className:"empty"},h("div",{className:"e"},"🗺"),
+      h("div",null,"지도에 표시할 기록이 없어요"),
+      h("div",{className:"tiny",style:{marginTop:6}},"세션 기록에서 위치를 저장하면 여기 핀으로 모여요"));
+  if(failed[0])
+    return h("div",{className:"tiny",style:{padding:"16px 0"}},"지도를 불러올 수 없어요 (오프라인?). 잠시 후 다시 시도해주세요.");
+
+  return h("div",null,
+    h("div",{className:"tiny",style:{marginBottom:8}},"📍 위치가 기록된 세션 "+geoSessions.length+"건 · 핀을 탭해 기록을 확인하세요"),
+    h("div",{ref:ref,style:{width:"100%",height:"460px",borderRadius:14,overflow:"hidden",border:"1px solid var(--line)"}}));
 }
 
 /* ---------------- sheet ---------------- */
