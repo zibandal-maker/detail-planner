@@ -1168,7 +1168,7 @@ function StepEditor(props){
   var ctx=props.ctx,st0=props.step;
   var name=useState(st0.name),cat=useState(st0.cat||""),chemIds=useState(st0.chemIds||[]),equipIds=useState(st0.equipIds||[]);
   var dil=useState(st0.dilution||""),tools=useState(st0.tools||""),est=useState(st0.estMin||0),panel=useState(st0.panel||"");
-  var tags=useState(st0.tags||[]),usedMl=useState(st0.usedMl||0),showAllChem=useState(false);
+  var tags=useState(st0.tags||[]),usedMl=useState(st0.usedMl||0),showAllChem=useState(false),calc=useState(false);
 
   function toggleChem(id){chemIds[1](chemIds[0].indexOf(id)>=0?chemIds[0].filter(function(x){return x!==id;}):chemIds[0].concat([id]));}
   function toggleEquip(id){equipIds[1](equipIds[0].indexOf(id)>=0?equipIds[0].filter(function(x){return x!==id;}):equipIds[0].concat([id]));}
@@ -1185,7 +1185,7 @@ function StepEditor(props){
     props.onSave(Object.assign({},st0,{name:name[0].trim(),cat:cat[0],chemIds:chemIds[0],equipIds:equipIds[0],
       dilution:dil[0],tools:tools[0],estMin:parseInt(est[0])||0,panel:panel[0],tags:tags[0],usedMl:parseInt(usedMl[0])||0}));
   }
-  return h(Sheet,{close:props.close,title:st0._new?"스텝 편집":"스텝 편집",children:[
+  return h("div",null, h(Sheet,{close:props.close,title:st0._new?"스텝 편집":"스텝 편집",children:[
     h("label",{className:"fl",key:1},"스텝 이름"),
     h("input",{key:2,className:"inp",placeholder:"예: 폼 도포, 휠 세척, 세라믹 코팅",value:name[0],onChange:function(e){name[1](e.target.value);}}),
 
@@ -1204,7 +1204,9 @@ function StepEditor(props){
         cat[0]&&h("button",{className:"chip sm",style:{marginTop:8,color:"var(--accent)"},onClick:function(){showAllChem[1](!showAllChem[0]);}},
           showAllChem[0]?"카테고리만 보기":"＋ 다른 케미컬 추가")),
 
-    h("label",{className:"fl",key:7},"희석비"),
+    h("div",{className:"row between",key:7,style:{margin:"14px 2px 6px"}},
+      h("span",{style:{fontSize:13,color:"var(--txt2)",fontWeight:700}},"희석비"),
+      h("button",{className:"chip sm",style:{color:"var(--accent)"},onClick:function(){calc[1](true);}},"🧪 계산기")),
     h("div",{key:"dil",className:"chips"},DILUTIONS.map(function(d){
       return h("span",{key:d,className:"chip"+(dil[0]===d?" on":""),onClick:function(){dil[1](dil[0]===d?"":d);}},d);})),
 
@@ -1241,7 +1243,9 @@ function StepEditor(props){
     h("div",{key:15,style:{height:18}}),
     h("button",{key:16,className:"btn",onClick:done},"저장"),
     !st0._new&&h("button",{key:17,className:"btn ghost danger",style:{marginTop:10},onClick:function(){props.onDelete(st0.id);}},"스텝 삭제")
-  ]});
+  ]}),
+  calc[0]&&h(DilutionCalc,{initialRatio:dil[0],close:function(){calc[1](false);},
+    onApply:function(ratio,concMl){ dil[1](ratio); if(concMl>0)usedMl[1](concMl); calc[1](false); }}));
 }
 
 /* ---------------- GARAGE ---------------- */
@@ -1374,12 +1378,13 @@ function Bottle(props){
     h("line",{x1:8,y1:20,x2:18,y2:20,stroke:"var(--line)",strokeWidth:1}));
 }
 function ChemTab(props){
-  var ctx=props.ctx,edit=useState(null),filterCat=useState("");
+  var ctx=props.ctx,edit=useState(null),filterCat=useState(""),calc=useState(false);
   var list=ctx.chem.filter(function(c){return !filterCat[0]||c.cat===filterCat[0];});
   // group by category
   var byCat={};
   list.forEach(function(c){var k=c.cat||"etc";if(!byCat[k])byCat[k]=[];byCat[k].push(c);});
   return h("div",null,
+    h("button",{className:"btn ghost",style:{marginBottom:14},onClick:function(){calc[1](true);}},"🧪 희석 계산기"),
     ctx.chem.length===0&&h("div",{className:"empty"},h("div",{className:"e"},"🧴"),"등록된 케미컬이 없어요"),
     ctx.chem.length>0&&h("div",{className:"chips",style:{marginBottom:14}},
       h("span",{className:"chip"+(filterCat[0]===""?" on":""),onClick:function(){filterCat[1]("");}},"전체"),
@@ -1407,7 +1412,8 @@ function ChemTab(props){
         }));
     }),
     h("button",{className:"fab",onClick:function(){edit[1]({_new:true,id:uid(),name:"",brand:"",cat:"",subtype:"",notes:"",photo:"",volMl:0,remainMl:0,defaultMl:0});}},"+"),
-    edit[0]&&h(ChemEditor,{c:edit[0],ctx:ctx,close:function(){edit[1](null);}}));
+    edit[0]&&h(ChemEditor,{c:edit[0],ctx:ctx,close:function(){edit[1](null);}}),
+    calc[0]&&h(DilutionCalc,{close:function(){calc[1](false);}}));
 }
 function ChemEditor(props){
   var c0=props.c,ctx=props.ctx,fileRef=useRef(null);
@@ -1720,6 +1726,85 @@ function SettingsSheet(props){
 }
 
 /* ---------------- sheet ---------------- */
+/* ---------------- DILUTION CALCULATOR ---------------- */
+var VOLUME_PRESETS=[
+  {n:"스프레이 500ml", ml:500},{n:"스프레이 750ml", ml:750},
+  {n:"폼랜서 1L", ml:1000},{n:"버킷 8L", ml:8000},
+  {n:"버킷 12L", ml:12000},{n:"버킷 20L", ml:20000}
+];
+// ratio "X:1" → parts. basis 'total': dose = total/(X+1). basis 'water': dose = total/(X+1) too for water:conc,
+// but we model water-basis as conc = total/(ratio+1) with water = total*ratio/(ratio+1). For total-basis,
+// conc = total/ratio (ratio parts total). We expose both clearly.
+function calcDilution(ratioX, totalMl, basis){
+  if(!ratioX||ratioX<=0||!totalMl||totalMl<=0) return null;
+  var conc, water;
+  if(basis==="total"){ // ratioX parts total, 1 part conc
+    conc = totalMl / ratioX;
+  }else{ // water basis: ratioX parts water : 1 part conc → total = ratioX+1 parts
+    conc = totalMl / (ratioX + 1);
+  }
+  water = totalMl - conc;
+  return {conc:conc, water:water};
+}
+function fmtMl(ml){
+  if(ml>=1000) return (Math.round(ml/10)/100)+" L";
+  return (Math.round(ml*10)/10)+" ml";
+}
+function DilutionCalc(props){ // props: close, initialRatio, onApply(optional)
+  var ratioStr=useState(props.initialRatio||""), total=useState(1000), basis=useState("total");
+  // parse ratio: accepts "200:1", "1:200", "200", "5%"
+  function parseRatio(str){
+    str=(str||"").trim();
+    if(!str) return null;
+    if(str.indexOf("%")>=0){ var pct=parseFloat(str); if(pct>0&&pct<100) return (100/pct)-1>0?(100/pct):null; }
+    if(str.indexOf(":")>=0){
+      var a=str.split(":"), p=parseFloat(a[0]), q=parseFloat(a[1]);
+      if(p>0&&q>0){ return p>=q ? p/q : q/p; } // normalize to "X:1" where X is the big side
+    }
+    var n=parseFloat(str); return n>0?n:null;
+  }
+  var ratioX=parseRatio(ratioStr[0]);
+  var res=ratioX?calcDilution(ratioX, parseFloat(total[0]), basis[0]):null;
+
+  return h(Sheet,{close:props.close,title:"희석 계산기",children:[
+    h("label",{className:"fl",key:1},"희석비"),
+    h("div",{key:"rq",className:"chips",style:{marginBottom:9}},
+      ["256:1","200:1","100:1","50:1","20:1","10:1","4:1","1:1"].map(function(r){
+        return h("span",{key:r,className:"chip"+(ratioStr[0]===r?" on":""),onClick:function(){ratioStr[1](r);}},r);})),
+    h("input",{key:2,className:"inp",placeholder:"예: 200:1, 1:200, 또는 5%",value:ratioStr[0],onChange:function(e){ratioStr[1](e.target.value);}}),
+
+    h("label",{className:"fl",key:3},"해석 기준"),
+    h("div",{key:"bt",className:"seg"},
+      h("button",{className:basis[0]==="total"?"on":"",onClick:function(){basis[1]("total");}},"전체 기준"),
+      h("button",{className:basis[0]==="water"?"on":"",onClick:function(){basis[1]("water");}},"물 기준")),
+    h("div",{key:"bh",className:"tiny",style:{marginTop:6}},
+      basis[0]==="total"?"200:1 = 전체 200에 원액 1 (디테일링 표준)":"200:1 = 물 200에 원액 1"),
+
+    h("label",{className:"fl",key:4},"만들 총량"),
+    h("div",{key:"vq",className:"chips",style:{marginBottom:9}},VOLUME_PRESETS.map(function(v){
+      return h("span",{key:v.n,className:"chip"+(parseFloat(total[0])===v.ml?" on":""),onClick:function(){total[1](v.ml);}},v.n);})),
+    h("div",{key:"vr",className:"row",style:{gap:8}},
+      h("input",{className:"inp",type:"number",inputMode:"numeric",value:total[0],onChange:function(e){total[1](e.target.value);}}),
+      h("div",{style:{display:"flex",alignItems:"center",color:"var(--txt2)",fontWeight:700,padding:"0 4px"}},"ml")),
+
+    res&&h("div",{key:"res",className:"card",style:{marginTop:16,background:"var(--surface2)"}},
+      h("div",{className:"row between",style:{marginBottom:10}},
+        h("div",null,h("div",{className:"tiny"},"원액"),
+          h("div",{style:{fontSize:26,fontWeight:800,color:"var(--accent)"}},fmtMl(res.conc))),
+        h("div",{style:{textAlign:"right"}},h("div",{className:"tiny"},"물"),
+          h("div",{style:{fontSize:26,fontWeight:800}},fmtMl(res.water)))),
+      h("div",{style:{height:8,borderRadius:4,overflow:"hidden",display:"flex",border:"1px solid var(--line)"}},
+        h("div",{style:{width:Math.max(2,res.conc/parseFloat(total[0])*100)+"%",background:"var(--grad)"}}),
+        h("div",{style:{flex:1,background:"rgba(91,140,255,.15)"}})),
+      h("div",{className:"tiny",style:{marginTop:8,textAlign:"center"}},
+        "총 "+fmtMl(parseFloat(total[0]))+" 기준 · 원액 "+Math.round(res.conc/parseFloat(total[0])*1000)/10+"%")),
+
+    props.onApply&&ratioStr[0]&&h("button",{key:"ap",className:"btn",style:{marginTop:14},
+      onClick:function(){props.onApply(ratioStr[0], res?Math.round(res.conc):0);}},"이 희석비를 스텝에 적용"),
+    h("div",{key:"sp",style:{height:10}})
+  ]});
+}
+
 /* ---------------- LEAFLET MAP ---------------- */
 function LeafletMap(props){ // props: lat, lng, height, interactive
   var ref=useRef(null), mapRef=useRef(null), failed=useState(false);
