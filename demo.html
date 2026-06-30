@@ -123,15 +123,19 @@ textarea.inp{resize:vertical;min-height:64px}
 .chip.sm{padding:4px 10px;font-size:12px}
 
 .scrim{position:fixed;inset:0;z-index:40;background:rgba(8,12,22,.62);
-  backdrop-filter:blur(4px);display:flex;align-items:flex-end;animation:fade .2s}
+  backdrop-filter:blur(4px);display:flex;align-items:flex-end;animation:fade .2s;
+  overscroll-behavior:contain;touch-action:none}
 @keyframes fade{from{opacity:0}}
 .sheet{background:linear-gradient(180deg,var(--surface-solid),#0c1120);
   width:100%;max-width:680px;margin:0 auto;
   border:1px solid var(--line);border-bottom:none;
   border-radius:24px 24px 0 0;max-height:93vh;overflow-y:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;
   padding:8px 17px calc(22px + env(safe-area-inset-bottom));
   animation:slup .3s cubic-bezier(.2,.85,.25,1);
   box-shadow:0 -16px 50px rgba(2,5,16,.6)}
+/* 시트가 열렸을 때 배경 스크롤 잠금 */
+body.sheet-open{overflow:hidden;position:fixed;width:100%;touch-action:none}
 @keyframes slup{from{transform:translateY(100%)}}
 .grab{width:40px;height:4px;background:var(--line2);border-radius:3px;margin:9px auto 14px}
 .sheet h2{font-size:20px;margin:4px 0 17px;font-weight:800;letter-spacing:-.2px}
@@ -346,7 +350,7 @@ function recipeSituation(k){return RECIPE_SITUATIONS.find(function(x){return x.k
 /* ===== IndexedDB ===== */
 var DB=null;
 var DBNAME=(window.DEMO_MODE?"detaillog_demo":"detaillog");
-var APP_VERSION="1.6.1";   // 설정창 표시용 앱 버전
+var APP_VERSION="1.6.3";   // 설정창 표시용 앱 버전
 var SEED_VERSION=3;        // 데모 시드 버전 — 시드 데이터 바꾸면 +1 (데모 DB 자동 갱신)
 function openDB(){
   return new Promise(function(res,rej){
@@ -692,6 +696,14 @@ function fmtClock(s){var m=Math.floor(s/60),ss=s%60;return (m<10?"0":"")+m+":"+(
 function fmtMin(s){return Math.round(s/60)+"분";}
 function todayStr(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function won(n){return (n||0).toLocaleString("ko-KR")+"원";}
+// 구글 이미지 검색을 깨끗하게 새로 연다 (udm=2 신형 이미지탭, 매번 새 컨텍스트)
+function openImageSearch(terms){
+  var q=encodeURIComponent(String(terms||"").trim());
+  if(!q) return;
+  // udm=2 = 구글 이미지 검색(신형). 매번 고유 타임스탬프로 캐시/세션 복원 방지.
+  var url="https://www.google.com/search?udm=2&q="+q;
+  window.open(url,"_blank","noopener,noreferrer");
+}
 
 /* coating expiry: vehicle.coating = {type, date(YYYY-MM-DD), months} */
 var COATING_TYPES=[
@@ -2279,8 +2291,7 @@ function ChemEditor(props){
   }
   function imgSearch(){
     if(!name[0].trim()){alert("먼저 제품명을 입력하세요");return;}
-    var q=encodeURIComponent((brand[0]?brand[0]+" ":"")+name[0]+" detailing");
-    window.open("https://www.google.com/search?tbm=isch&q="+q,"_blank");
+    openImageSearch((brand[0]?brand[0]+" ":"")+name[0]+" 디테일링");
   }
   // 소진 예측 미리보기
   var usesLeft=(parseInt(defMl[0])>0)?Math.floor((parseInt(remain[0])||0)/parseInt(defMl[0])):null;
@@ -2413,7 +2424,7 @@ function GearEditor(props){
       uses:parseInt(uses[0])||0,lifeLimit:parseInt(lifeLimit[0])||0,
       boughtDate:boughtDate[0]||"",price:parseInt(price[0])||0}).then(ctx.reload).then(props.close);}
   function imgSearch(){if(!name[0].trim()){alert("먼저 장비명을 입력하세요");return;}
-    window.open("https://www.google.com/search?tbm=isch&q="+encodeURIComponent((brand[0]?brand[0]+" ":"")+name[0]),"_blank");}
+    openImageSearch((brand[0]?brand[0]+" ":"")+name[0]);}
   return h(Sheet,{close:props.close,title:e0._new?"장비 등록":"장비 편집",children:[
     h("button",{key:"s",className:"btn ghost sm",style:{width:"100%",marginBottom:8},onClick:imgSearch},"🔍 구글 이미지에서 사진 찾기"),
     h(PhotoInput,{key:"pi",photo:photo[0],onChange:function(d){photo[1](d);}}),
@@ -2933,7 +2944,26 @@ function SessionsMap(props){
 }
 
 /* ---------------- sheet ---------------- */
+var __sheetCount=0; // 중첩 시트 카운터
 function Sheet(props){
+  useEffect(function(){
+    __sheetCount++;
+    var scrollY=window.scrollY||0;
+    if(__sheetCount===1){
+      document.body.style.top=(-scrollY)+"px";
+      document.body.classList.add("sheet-open");
+    }
+    return function(){
+      __sheetCount--;
+      if(__sheetCount<=0){
+        __sheetCount=0;
+        document.body.classList.remove("sheet-open");
+        var y=Math.abs(parseInt(document.body.style.top||"0",10))||0;
+        document.body.style.top="";
+        window.scrollTo(0,y); // 닫을 때 원래 스크롤 위치 복원
+      }
+    };
+  },[]);
   function bg(e){if(e.target===e.currentTarget)props.close();}
   return h("div",{className:"scrim",onClick:bg},
     h("div",{className:"sheet"},h("div",{className:"grab"}),
