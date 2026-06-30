@@ -1,6 +1,6 @@
 // 세차 플래너 — Service Worker
 // 앱 셸을 캐시해 오프라인에서도 구동. 데이터는 IndexedDB(SW 무관).
-var CACHE = 'detaillog-v1';
+var CACHE = 'detaillog-v2';
 var SHELL = [
   '/',
   '/index.html',
